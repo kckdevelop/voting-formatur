@@ -152,8 +152,16 @@
                     <!-- Scanner Video Container -->
                     <div id="reader" class="w-full bg-slate-100 rounded-2xl overflow-hidden min-h-[240px] border border-slate-200"></div>
 
-                    <!-- Status Message -->
-                    <div x-show="qrMessage" class="mt-4 p-3 rounded-xl text-xs font-semibold text-center leading-relaxed" :class="qrSuccess ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'" x-text="qrMessage"></div>
+                    <!-- Status Message & Retry Action -->
+                    <div x-show="qrMessage" class="mt-4 p-3.5 rounded-2xl text-xs font-semibold text-center leading-relaxed" :class="qrSuccess ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'">
+                        <p x-text="qrMessage"></p>
+                        <template x-if="!qrSuccess && !isHttp">
+                            <button type="button" @click="initScanner()" class="mt-2.5 px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold rounded-xl shadow-sm transition inline-flex items-center">
+                                <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                Coba Minta Izin Kamera Lagi
+                            </button>
+                        </template>
+                    </div>
 
                     <!-- Alternative Fallback: File / Photo Upload -->
                     <div class="mt-4 pt-4 border-t border-slate-100 flex flex-col items-center">
@@ -198,9 +206,11 @@ function studentLoginHandler() {
         closeQrModal() {
             this.qrModalOpen = false;
             if (this.qrScanner) {
-                this.qrScanner.stop().then(() => {
-                    this.qrScanner.clear();
-                }).catch(err => console.error(err));
+                try {
+                    this.qrScanner.stop().then(() => {
+                        this.qrScanner.clear();
+                    }).catch(err => console.error(err));
+                } catch(e) {}
             }
         },
 
@@ -212,37 +222,81 @@ function studentLoginHandler() {
                 return;
             }
 
+            self.qrMessage = 'Meminta izin akses kamera browser...';
+            self.qrSuccess = true;
+
+            if (self.qrScanner) {
+                try {
+                    self.qrScanner.stop().catch(() => {}).finally(() => {
+                        self.startCameraStream();
+                    });
+                    return;
+                } catch(e) {}
+            }
+
+            self.startCameraStream();
+        },
+
+        startCameraStream() {
+            const self = this;
             const html5QrCode = new Html5Qrcode("reader");
             self.qrScanner = html5QrCode;
-
             const config = { fps: 10, qrbox: { width: 220, height: 220 } };
 
-            // Attempt 1: Start with facingMode environment (rear camera)
-            html5QrCode.start(
-                { facingMode: "environment" },
-                config,
-                (decodedText) => self.processQrPayload(decodedText),
-                () => {}
-            ).catch(err => {
-                console.warn("Facing mode environment failed, trying camera fallback...", err);
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                self.handleCameraError("Browser HP Anda tidak mendukung streaming kamera live (API MediaDevices tidak tersedia atau situs diakses via HTTP).");
+                return;
+            }
 
-                // Attempt 2: Fallback to enumerated cameras
-                Html5Qrcode.getCameras().then(devices => {
-                    if (devices && devices.length > 0) {
-                        const backCamera = devices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('rear')) || devices[devices.length - 1];
-                        const cameraId = backCamera ? backCamera.id : devices[0].id;
-
-                        html5QrCode.start(
-                            cameraId,
-                            config,
-                            (decodedText) => self.processQrPayload(decodedText),
-                            () => {}
-                        ).catch(err2 => self.handleCameraError(err2));
-                    } else {
-                        self.handleCameraError(err);
+            // Step 1: Explicitly request native browser camera permission
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } } })
+                .catch(() => navigator.mediaDevices.getUserMedia({ video: true }))
+                .then((stream) => {
+                    if (stream) {
+                        stream.getTracks().forEach(track => track.stop());
                     }
-                }).catch(() => self.handleCameraError(err));
-            });
+
+                    // Step 2: Start Html5Qrcode scanner with environment camera
+                    return html5QrCode.start(
+                        { facingMode: "environment" },
+                        config,
+                        (decodedText) => self.processQrPayload(decodedText),
+                        () => {}
+                    );
+                })
+                .then(() => {
+                    self.qrMessage = 'Kamera aktif! Arahkan kamera ke QR Code.';
+                    self.qrSuccess = true;
+                })
+                .catch((err) => {
+                    console.warn("Direct facingMode failed, trying getCameras fallback...", err);
+                    
+                    return Html5Qrcode.getCameras().then(devices => {
+                        if (devices && devices.length > 0) {
+                            const backCamera = devices.find(d => 
+                                d.label.toLowerCase().includes('back') || 
+                                d.label.toLowerCase().includes('rear') || 
+                                d.label.toLowerCase().includes('lingkungan') ||
+                                d.label.toLowerCase().includes('0')
+                            ) || devices[devices.length - 1];
+
+                            return html5QrCode.start(
+                                backCamera.id,
+                                config,
+                                (decodedText) => self.processQrPayload(decodedText),
+                                () => {}
+                            ).then(() => {
+                                self.qrMessage = 'Kamera aktif! Arahkan kamera ke QR Code.';
+                                self.qrSuccess = true;
+                            });
+                        } else {
+                            throw err;
+                        }
+                    });
+                })
+                .catch((err) => {
+                    self.handleCameraError(err);
+                });
         },
 
         handleCameraError(err) {
@@ -250,7 +304,7 @@ function studentLoginHandler() {
             if (this.isHttp) {
                 errorMsg += 'Situs ini diakses melalui HTTP (bukan HTTPS). Gunakan URL https:// atau pakai tombol "Upload / Ambil Foto QR Code" di bawah.';
             } else {
-                errorMsg += 'Izinkan akses kamera pada browser HP Anda atau gunakan tombol "Upload / Ambil Foto QR Code" di bawah.';
+                errorMsg += 'Izinkan akses kamera pada popup browser HP Anda atau gunakan tombol "Upload / Ambil Foto QR Code" di bawah.';
             }
             this.qrMessage = errorMsg;
             this.qrSuccess = false;
