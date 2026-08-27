@@ -341,23 +341,28 @@ function studentLoginHandler() {
         },
 
         handleCameraError(err) {
+            const rawErrStr = (err && err.message) ? `${err.name || 'Error'}: ${err.message}` : (err && err.name ? err.name : String(err || ''));
             const errName = (err && err.name) ? err.name : (typeof err === 'string' ? err : '');
             let msg = '';
 
             if (this.isHttp) {
                 msg = '🔒 Kamera memerlukan HTTPS. Hubungi panitia untuk mengaktifkan HTTPS, atau gunakan tombol "Upload Foto QR" di bawah.';
             } else if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
-                msg = '🚫 Izin kamera ditolak.\n\nCara reset izin:\n• Chrome: ketuk ikon gembok/kamera di address bar → Izinkan\n• Safari: Pengaturan → Safari → Kamera → Izinkan\n\nAtau gunakan tombol "Upload Foto QR" di bawah.';
+                msg = '🚫 Izin kamera ditolak oleh Browser / Windows OS.\n\nJika izin Chrome sudah "Izinkan", pastikan Pengaturan Windows → Privasi → Kamera → "Izinkan aplikasi desktop mengakses kamera" sudah AKTIF.';
             } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
                 msg = '📵 Kamera tidak ditemukan di perangkat ini. Gunakan tombol "Upload / Ambil Foto QR Code" di bawah.';
             } else if (errName === 'NotReadableError' || errName === 'TrackStartError') {
-                msg = '⚠️ Kamera sedang digunakan aplikasi lain (mis. WhatsApp / Zoom). Tutup aplikasi lain lalu tekan "Coba Lagi", atau gunakan tombol "Upload Foto QR" di bawah.';
+                msg = '⚠️ Kamera sedang digunakan aplikasi lain (mis. Zoom / WhatsApp / Meet) atau terkunci oleh sistem. Tutup aplikasi lain lalu tekan "Coba Lagi".';
             } else if (errName === 'NotSupportedError' || errName === 'TypeError') {
-                msg = '❌ Browser ini tidak mendukung akses kamera live. Gunakan Chrome/Safari versi terbaru, atau gunakan tombol "Upload / Ambil Foto QR Code" di bawah.';
+                msg = '❌ Browser ini tidak mendukung akses kamera live. Gunakan Chrome/Safari versi terbaru, atau gunakan tombol "Upload Foto QR" di bawah.';
             } else if (errName === 'OverconstrainedError') {
-                msg = '📷 Kamera belakang tidak tersedia. Menekan "Coba Lagi" untuk mencoba kamera lain, atau gunakan tombol "Upload Foto QR" di bawah.';
+                msg = '📷 Kamera tidak mendukung konfigurasi yang diminta. Tekan "Coba Lagi" atau gunakan tombol "Upload Foto QR" di bawah.';
             } else {
-                msg = '❌ Tidak dapat mengakses kamera live.\n\nSilakan:\n1. Izinkan akses kamera pada popup browser\n2. Atau gunakan tombol "Upload / Ambil Foto QR Code" di bawah';
+                msg = '❌ Tidak dapat mengakses kamera live.';
+            }
+
+            if (rawErrStr && rawErrStr !== '[object Object]' && !msg.includes(rawErrStr)) {
+                msg += '\n\n(Detail Error: ' + rawErrStr + ')';
             }
 
             this.qrMessage = msg;
