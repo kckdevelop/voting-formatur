@@ -223,4 +223,31 @@ class VotingSystemTest extends TestCase
         $resHidden = $this->actingAs($student, 'student')->get(route('student.voting'));
         $resHidden->assertDontSee('Visi & Misi', false);
     }
+
+    public function test_admin_can_clear_all_voters()
+    {
+        $admin = Admin::create([
+            'username' => 'admin_test2',
+            'email' => 'admin2@example.com',
+            'name' => 'Admin Test 2',
+            'password' => Hash::make('password123'),
+        ]);
+
+        Student::create([
+            'nis' => '99901',
+            'nama' => 'Student 1',
+            'kelas' => 'XI TKJ 1',
+            'token' => Hash::make('TK01'),
+            'plain_token' => 'TK01',
+            'status' => 'active',
+        ]);
+
+        $this->assertEquals(1, Student::count());
+
+        $res = $this->actingAs($admin, 'admin')
+            ->delete(route('admin.students.clear-all'));
+
+        $res->assertRedirect();
+        $this->assertEquals(0, Student::count());
+    }
 }

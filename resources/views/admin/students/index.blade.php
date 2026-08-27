@@ -97,6 +97,15 @@
                 </button>
             </form>
 
+            <form action="{{ route('admin.students.clear-all') }}" method="POST" onsubmit="return confirm('PERINGATAN AKAN MENGOSONGKAN SELURUH DATA VOTER!\nApakah Anda yakin ingin menghapus seluruh data siswa/voter?\nTindakan ini TIDAK BISA DIBATALKAN!')">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded-2xl transition flex items-center" title="Hapus seluruh data siswa/voter">
+                    <svg class="w-4 h-4 mr-1.5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    Kosongkan Data Voter
+                </button>
+            </form>
+
             <button type="button" @click="addModalOpen = true" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-2xl shadow-md transition flex items-center">
                 <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                 Tambah Siswa

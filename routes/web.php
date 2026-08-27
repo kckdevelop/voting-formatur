@@ -48,6 +48,7 @@ Route::prefix('admin')->group(function () {
         Route::get('/students/import/template', [StudentManagementController::class, 'downloadImportTemplate'])->name('admin.students.import.template');
         Route::post('/students/bulk-regenerate-tokens', [StudentManagementController::class, 'bulkRegenerateTokens'])->name('admin.students.bulk-regenerate-tokens');
         Route::delete('/students/bulk-delete', [StudentManagementController::class, 'bulkDelete'])->name('admin.students.bulk-delete');
+        Route::delete('/students/clear-all', [StudentManagementController::class, 'clearAll'])->name('admin.students.clear-all');
         Route::get('/students/qr-cards', [StudentManagementController::class, 'qrCards'])->name('admin.students.qr-cards');
         Route::put('/students/{student}', [StudentManagementController::class, 'update'])->name('admin.students.update');
         Route::delete('/students/{student}', [StudentManagementController::class, 'destroy'])->name('admin.students.destroy');

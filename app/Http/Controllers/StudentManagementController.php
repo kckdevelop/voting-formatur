@@ -128,6 +128,20 @@ class StudentManagementController extends Controller
         return back()->with('success', "Berhasil menghapus {$count} data siswa/voter secara massal.");
     }
 
+    public function clearAll(Request $request)
+    {
+        $count = Student::count();
+        if ($count === 0) {
+            return back()->with('error', 'Data siswa/voter sudah kosong.');
+        }
+
+        Student::query()->delete();
+
+        AuditLogService::log('CLEAR_ALL_STUDENTS', "Mengosongkan seluruh data siswa/voter ({$count} siswa dihapus).");
+
+        return back()->with('success', "Berhasil mengosongkan seluruh data siswa/voter ({$count} data siswa dihapus).");
+    }
+
     public function bulkRegenerateTokens(Request $request)
     {
         $students = Student::all();
