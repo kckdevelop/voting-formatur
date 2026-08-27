@@ -172,8 +172,9 @@
                     </div>
 
                     <div>
-                        <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Foto Calon (JPG/PNG/WEBP max 2MB)</label>
-                        <input type="file" name="foto" accept="image/*" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                        <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Foto Calon (Otomatis Kompres Kantor / HP)</label>
+                        <input type="file" name="foto" accept="image/*" onchange="autoCompressPhoto(this)" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                        <p class="text-[10px] text-slate-400 mt-1">Foto besar dari HP/Kamera akan dikompres otomatis oleh sistem agar upload ultra-cepat.</p>
                     </div>
 
                     <div>
@@ -225,8 +226,8 @@
                     </div>
 
                     <div>
-                        <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Foto Baru (opsional)</label>
-                        <input type="file" name="foto" accept="image/*" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                        <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Foto Baru (opsional - Otomatis Kompres)</label>
+                        <input type="file" name="foto" accept="image/*" onchange="autoCompressPhoto(this)" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
                     </div>
 
                     <div>
@@ -257,4 +258,58 @@
     </div>
 
 </div>
+
+<script>
+/**
+ * Kompres otomatis file foto calon (max 800x800 px JPEG, 80% quality)
+ * Mengubah file 5MB-15MB dari kamera HP menjadi ~100KB agar tidak menabrak batas limit Nginx server.
+ */
+function autoCompressPhoto(input) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    if (!file.type.startsWith('image/')) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+            const maxWidth = 800;
+            const maxHeight = 800;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > maxWidth || height > maxHeight) {
+                if (width > height) {
+                    height = Math.round((height * maxWidth) / width);
+                    width = maxWidth;
+                } else {
+                    width = Math.round((width * maxHeight) / height);
+                    height = maxHeight;
+                }
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob(function(blob) {
+                if (blob && blob.size < file.size) {
+                    const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
+                        type: 'image/jpeg',
+                        lastModified: Date.now()
+                    });
+
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(compressedFile);
+                    input.files = dataTransfer.files;
+                }
+            }, 'image/jpeg', 0.82);
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+</script>
 @endsection
