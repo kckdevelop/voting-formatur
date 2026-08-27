@@ -250,4 +250,27 @@ class VotingSystemTest extends TestCase
         $res->assertRedirect();
         $this->assertEquals(0, Student::count());
     }
+
+    public function test_admin_can_import_students_excel()
+    {
+        $admin = Admin::create([
+            'username' => 'admin_test3',
+            'email' => 'admin3@example.com',
+            'name' => 'Admin Test 3',
+            'password' => Hash::make('password123'),
+        ]);
+
+        $file = \Illuminate\Http\Testing\File::createWithContent('test_students.csv', "NIS,NAMA LENGKAP,KELAS\n9001,Siswa Fast 1,XI TKJ 1\n9002,Siswa Fast 2,XI TKJ 2\n");
+
+        $res = $this->actingAs($admin, 'admin')
+            ->post(route('admin.students.import'), [
+                'file' => $file,
+                'mode' => 'append',
+            ]);
+
+        $res->assertRedirect();
+        $this->assertEquals(2, Student::count());
+        $this->assertDatabaseHas('students', ['nis' => '9001', 'nama' => 'Siswa Fast 1']);
+        $this->assertDatabaseHas('students', ['nis' => '9002', 'nama' => 'Siswa Fast 2']);
+    }
 }

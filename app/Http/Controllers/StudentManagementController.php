@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Student;
 use App\Services\AuditLogService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -288,57 +289,99 @@ class StudentManagementController extends Controller
             $updated  = 0;
             $skipped  = 0;
             $errors   = [];
-            $firstRow = true;
 
-            foreach ($rows as $rowIndex => $row) {
-                if ($firstRow) {
-                    $firstRow = false;
-                    continue;
-                }
+            // Pre-fetch seluruh NIS yang ada di database dalam 1 query saja (menghilangkan N+1 query)
+            $existingMap = Student::pluck('id', 'nis')->toArray();
+            $newStudentsBatch = [];
+            $seenNisInFile = [];
+            $now = now()->toDateTimeString();
 
-                // Normalisasi array dari PhpSpreadsheet (key A, B, C) atau array numerik (0, 1, 2)
-                $nis   = trim((string) ($row['A'] ?? $row[0] ?? ''));
-                $nama  = trim((string) ($row['B'] ?? $row[1] ?? ''));
-                $kelas = trim((string) ($row['C'] ?? $row[2] ?? ''));
+            DB::transaction(function () use (
+                &$rows,
+                &$existingMap,
+                $mode,
+                &$imported,
+                &$updated,
+                &$skipped,
+                &$errors,
+                &$newStudentsBatch,
+                &$seenNisInFile,
+                $now
+            ) {
+                $firstRow = true;
 
-                // Lewati baris kosong
-                if (empty($nis) && empty($nama)) {
-                    continue;
-                }
-
-                // Validasi kolom wajib
-                if (empty($nis) || empty($nama) || empty($kelas)) {
-                    $errors[] = "Baris {$rowIndex}: NIS/Nama/Kelas tidak boleh kosong.";
-                    $skipped++;
-                    continue;
-                }
-
-                $existing = Student::where('nis', $nis)->first();
-
-                if ($existing) {
-                    if ($mode === 'update') {
-                        $existing->update([
-                            'nama'  => $nama,
-                            'kelas' => $kelas,
-                        ]);
-                        $updated++;
-                    } else {
-                        $skipped++;
+                foreach ($rows as $rowIndex => $row) {
+                    if ($firstRow) {
+                        $firstRow = false;
+                        $cellA = strtoupper(trim((string)($row['A'] ?? $row[0] ?? '')));
+                        if (str_contains($cellA, 'NIS') || str_contains($cellA, 'TEMPLATE')) {
+                            continue;
+                        }
                     }
-                } else {
-                    $plainToken = strtoupper(Str::random(8));
-                    Student::create([
-                        'nis'         => $nis,
-                        'nama'        => $nama,
-                        'kelas'       => $kelas,
-                        'token'       => Hash::make($plainToken),
-                        'plain_token' => $plainToken,
-                        'status'      => 'active',
-                        'has_voted'   => false,
-                    ]);
-                    $imported++;
+
+                    // Normalisasi array dari PhpSpreadsheet (key A, B, C) atau array numerik (0, 1, 2)
+                    $nis   = trim((string) ($row['A'] ?? $row[0] ?? ''));
+                    $nama  = trim((string) ($row['B'] ?? $row[1] ?? ''));
+                    $kelas = trim((string) ($row['C'] ?? $row[2] ?? ''));
+
+                    // Lewati header jika terbawa di baris lain
+                    if (strtoupper($nis) === 'NIS' || strtoupper($nama) === 'NAMA LENGKAP') {
+                        continue;
+                    }
+
+                    // Lewati baris kosong
+                    if (empty($nis) && empty($nama)) {
+                        continue;
+                    }
+
+                    // Validasi kolom wajib
+                    if (empty($nis) || empty($nama) || empty($kelas)) {
+                        $errors[] = "Baris {$rowIndex}: NIS/Nama/Kelas tidak boleh kosong.";
+                        $skipped++;
+                        continue;
+                    }
+
+                    // Abaikan jika NIS duplikat di dalam file yang sama
+                    if (isset($seenNisInFile[$nis])) {
+                        $skipped++;
+                        continue;
+                    }
+                    $seenNisInFile[$nis] = true;
+
+                    if (isset($existingMap[$nis])) {
+                        if ($mode === 'update') {
+                            Student::where('id', $existingMap[$nis])->update([
+                                'nama'  => $nama,
+                                'kelas' => $kelas,
+                            ]);
+                            $updated++;
+                        } else {
+                            $skipped++;
+                        }
+                    } else {
+                        $plainToken = strtoupper(Str::random(8));
+                        $newStudentsBatch[] = [
+                            'nis'         => $nis,
+                            'nama'        => $nama,
+                            'kelas'       => $kelas,
+                            'token'       => Hash::make($plainToken),
+                            'plain_token' => $plainToken,
+                            'status'      => 'active',
+                            'has_voted'   => false,
+                            'created_at'  => $now,
+                            'updated_at'  => $now,
+                        ];
+                        $imported++;
+                    }
                 }
-            }
+
+                // Batch insert dalam chunk 200 data sekaligus (100x lebih cepat daripada insert 1 per 1)
+                if (!empty($newStudentsBatch)) {
+                    foreach (array_chunk($newStudentsBatch, 200) as $chunk) {
+                        Student::insert($chunk);
+                    }
+                }
+            });
 
             AuditLogService::log(
                 'IMPORT_STUDENTS',
