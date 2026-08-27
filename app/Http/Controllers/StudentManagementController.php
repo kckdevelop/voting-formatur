@@ -215,162 +215,186 @@ class StudentManagementController extends Controller
 
     public function downloadImportTemplate()
     {
-        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        if (class_exists('ZipArchive')) {
+            try {
+                $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
 
-        // ── Sheet 1: Template Data ──────────────────────────────────────────
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Data Siswa');
+                // ── Sheet 1: Template Data ──────────────────────────────────────────
+                $sheet = $spreadsheet->getActiveSheet();
+                $sheet->setTitle('Data Siswa');
 
-        // Styling helper
-        $headerStyle = [
-            'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 11],
-            'fill'      => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                            'startColor' => ['rgb' => '065F46']],
-            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
-                            'vertical'   => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER],
-            'borders'   => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                                             'color'       => ['rgb' => '047857']]],
-        ];
+                // Styling helper
+                $headerStyle = [
+                    'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 11],
+                    'fill'      => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                                    'startColor' => ['rgb' => '065F46']],
+                    'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                                    'vertical'   => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER],
+                    'borders'   => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                                                     'color'       => ['rgb' => '047857']]],
+                ];
 
-        $dataStyle = [
-            'font'      => ['size' => 10],
-            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_LEFT,
-                            'vertical'   => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER],
-            'borders'   => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                                             'color'       => ['rgb' => 'CBD5E1']]],
-        ];
+                $dataStyle = [
+                    'font'      => ['size' => 10],
+                    'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_LEFT,
+                                    'vertical'   => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER],
+                    'borders'   => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                                                     'color'       => ['rgb' => 'CBD5E1']]],
+                ];
 
-        $noteStyle = [
-            'font' => ['italic' => true, 'color' => ['rgb' => '64748B'], 'size' => 9],
-            'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                       'startColor' => ['rgb' => 'F0FDF4']],
-        ];
+                $noteStyle = [
+                    'font' => ['italic' => true, 'color' => ['rgb' => '64748B'], 'size' => 9],
+                    'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                               'startColor' => ['rgb' => 'F0FDF4']],
+                ];
 
-        // Judul
-        $sheet->mergeCells('A1:C1');
-        $sheet->setCellValue('A1', 'TEMPLATE IMPORT DATA SISWA — E-Voting Formatur IPM');
-        $sheet->getStyle('A1')->applyFromArray([
-            'font'      => ['bold' => true, 'size' => 12, 'color' => ['rgb' => '065F46']],
-            'fill'      => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                            'startColor' => ['rgb' => 'D1FAE5']],
-            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
-                            'vertical'   => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER],
-        ]);
-        $sheet->getRowDimension(1)->setRowHeight(28);
+                // Judul
+                $sheet->mergeCells('A1:C1');
+                $sheet->setCellValue('A1', 'TEMPLATE IMPORT DATA SISWA — E-Voting Formatur IPM');
+                $sheet->getStyle('A1')->applyFromArray([
+                    'font'      => ['bold' => true, 'size' => 12, 'color' => ['rgb' => '065F46']],
+                    'fill'      => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                                    'startColor' => ['rgb' => 'D1FAE5']],
+                    'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                                    'vertical'   => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER],
+                ]);
+                $sheet->getRowDimension(1)->setRowHeight(28);
 
-        // Catatan
-        $sheet->mergeCells('A2:C2');
-        $sheet->setCellValue('A2', '⚠ Baris 1 = Judul (baris ini). Baris 2 = Catatan. Baris 3 = HEADER. Data mulai baris 4. Jangan ubah urutan kolom!');
-        $sheet->getStyle('A2')->applyFromArray($noteStyle);
-        $sheet->getRowDimension(2)->setRowHeight(16);
+                // Catatan
+                $sheet->mergeCells('A2:C2');
+                $sheet->setCellValue('A2', '⚠ Baris 1 = Judul (baris ini). Baris 2 = Catatan. Baris 3 = HEADER. Data mulai baris 4. Jangan ubah urutan kolom!');
+                $sheet->getStyle('A2')->applyFromArray($noteStyle);
+                $sheet->getRowDimension(2)->setRowHeight(16);
 
-        // Header kolom (baris 3)
-        $sheet->setCellValue('A3', 'NIS');
-        $sheet->setCellValue('B3', 'NAMA LENGKAP');
-        $sheet->setCellValue('C3', 'KELAS');
-        $sheet->getStyle('A3:C3')->applyFromArray($headerStyle);
-        $sheet->getRowDimension(3)->setRowHeight(22);
+                // Header kolom (baris 3)
+                $sheet->setCellValue('A3', 'NIS');
+                $sheet->setCellValue('B3', 'NAMA LENGKAP');
+                $sheet->setCellValue('C3', 'KELAS');
+                $sheet->getStyle('A3:C3')->applyFromArray($headerStyle);
+                $sheet->getRowDimension(3)->setRowHeight(22);
 
-        // Contoh data (baris 4–6)
-        $contohData = [
-            ['2024001', 'Ahmad Fauzan', 'XI TKJ 1'],
-            ['2024002', 'Budi Santoso', 'XI TKJ 2'],
-            ['2024003', 'Citra Dewi',   'XI AKL 1'],
-        ];
+                // Contoh data (baris 4–6)
+                $contohData = [
+                    ['2024001', 'Ahmad Fauzan', 'XI TKJ 1'],
+                    ['2024002', 'Budi Santoso', 'XI TKJ 2'],
+                    ['2024003', 'Citra Dewi',   'XI AKL 1'],
+                ];
 
-        $altStyle = [
-            'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                       'startColor' => ['rgb' => 'F8FAFC']],
-        ];
+                $altStyle = [
+                    'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                               'startColor' => ['rgb' => 'F8FAFC']],
+                ];
 
-        foreach ($contohData as $i => $row) {
-            $rowNum = $i + 4;
-            $sheet->setCellValue("A{$rowNum}", $row[0]);
-            $sheet->setCellValue("B{$rowNum}", $row[1]);
-            $sheet->setCellValue("C{$rowNum}", $row[2]);
-            $sheet->getStyle("A{$rowNum}:C{$rowNum}")->applyFromArray($dataStyle);
-            if ($i % 2 === 0) {
-                $sheet->getStyle("A{$rowNum}:C{$rowNum}")->applyFromArray($altStyle);
+                foreach ($contohData as $i => $row) {
+                    $rowNum = $i + 4;
+                    $sheet->setCellValue("A{$rowNum}", $row[0]);
+                    $sheet->setCellValue("B{$rowNum}", $row[1]);
+                    $sheet->setCellValue("C{$rowNum}", $row[2]);
+                    $sheet->getStyle("A{$rowNum}:C{$rowNum}")->applyFromArray($dataStyle);
+                    if ($i % 2 === 0) {
+                        $sheet->getStyle("A{$rowNum}:C{$rowNum}")->applyFromArray($altStyle);
+                    }
+                    $sheet->getRowDimension($rowNum)->setRowHeight(18);
+                }
+
+                // Placeholder baris kosong tambahan (baris 7–50)
+                for ($r = 7; $r <= 50; $r++) {
+                    $sheet->getStyle("A{$r}:C{$r}")->applyFromArray($dataStyle);
+                    $sheet->getRowDimension($r)->setRowHeight(17);
+                }
+
+                // Lebar kolom
+                $sheet->getColumnDimension('A')->setWidth(18);  // NIS
+                $sheet->getColumnDimension('B')->setWidth(35);  // Nama
+                $sheet->getColumnDimension('C')->setWidth(20);  // Kelas
+
+                // Freeze pane (header tetap saat scroll)
+                $sheet->freezePane('A4');
+
+                // ── Sheet 2: Petunjuk Pengisian ─────────────────────────────────────
+                $infoSheet = $spreadsheet->createSheet();
+                $infoSheet->setTitle('Petunjuk');
+
+                $infoSheet->setCellValue('A1', 'PETUNJUK PENGISIAN TEMPLATE IMPORT');
+                $infoSheet->getStyle('A1')->applyFromArray([
+                    'font' => ['bold' => true, 'size' => 13, 'color' => ['rgb' => '065F46']],
+                ]);
+                $infoSheet->getRowDimension(1)->setRowHeight(24);
+
+                $petunjuk = [
+                    [2,  'Kolom', 'Keterangan', 'Contoh'],
+                    [3,  'A - NIS', 'Nomor Induk Siswa. Harus unik, tidak boleh duplikat.', '2024001'],
+                    [4,  'B - NAMA LENGKAP', 'Nama lengkap siswa sesuai data sekolah.', 'Ahmad Fauzan'],
+                    [5,  'C - KELAS', 'Nama kelas siswa.', 'XI TKJ 1'],
+                    [7,  'Aturan Umum:', '', ''],
+                    [8,  '1.', 'Baris 3 adalah header, jangan dihapus.', ''],
+                    [9,  '2.', 'Data dimulai dari baris 4.', ''],
+                    [10, '3.', 'NIS yang sudah ada di sistem: tergantung mode import.', ''],
+                    [11, '4.', 'Mode Tambahkan: NIS duplikat dilewati (tidak diubah).', ''],
+                    [12, '5.', 'Mode Update: NIS duplikat akan diupdate nama & kelasnya.', ''],
+                    [13, '6.', 'Token login akan digenerate otomatis untuk siswa baru.', ''],
+                    [14, '7.', 'Format file yang didukung: .xlsx, .xls, .csv (maks 5MB).', ''],
+                ];
+
+                foreach ($petunjuk as $p) {
+                    [$rowNum, $col1, $col2, $col3] = $p;
+                    $infoSheet->setCellValue("A{$rowNum}", $col1);
+                    $infoSheet->setCellValue("B{$rowNum}", $col2);
+                    $infoSheet->setCellValue("C{$rowNum}", $col3);
+                }
+
+                // Style header tabel petunjuk
+                $infoSheet->getStyle('A2:C2')->applyFromArray([
+                    'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                    'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                               'startColor' => ['rgb' => '047857']],
+                ]);
+
+                // Style judul aturan
+                $infoSheet->getStyle('A7')->applyFromArray([
+                    'font' => ['bold' => true, 'size' => 11],
+                ]);
+
+                $infoSheet->getColumnDimension('A')->setWidth(22);
+                $infoSheet->getColumnDimension('B')->setWidth(60);
+                $infoSheet->getColumnDimension('C')->setWidth(20);
+
+                // Set active sheet ke sheet 1
+                $spreadsheet->setActiveSheetIndex(0);
+
+                // Tulis ke output
+                $writer   = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+                $filename = 'template_import_siswa_ipm.xlsx';
+
+                return response()->streamDownload(function () use ($writer) {
+                    $writer->save('php://output');
+                }, $filename, [
+                    'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+                    'Cache-Control'       => 'max-age=0',
+                ]);
+            } catch (\Throwable $e) {
+                // Fallback ke CSV
             }
-            $sheet->getRowDimension($rowNum)->setRowHeight(18);
         }
 
-        // Placeholder baris kosong tambahan (baris 7–50)
-        for ($r = 7; $r <= 50; $r++) {
-            $sheet->getStyle("A{$r}:C{$r}")->applyFromArray($dataStyle);
-            $sheet->getRowDimension($r)->setRowHeight(17);
-        }
-
-        // Lebar kolom
-        $sheet->getColumnDimension('A')->setWidth(18);  // NIS
-        $sheet->getColumnDimension('B')->setWidth(35);  // Nama
-        $sheet->getColumnDimension('C')->setWidth(20);  // Kelas
-
-        // Freeze pane (header tetap saat scroll)
-        $sheet->freezePane('A4');
-
-        // ── Sheet 2: Petunjuk Pengisian ─────────────────────────────────────
-        $infoSheet = $spreadsheet->createSheet();
-        $infoSheet->setTitle('Petunjuk');
-
-        $infoSheet->setCellValue('A1', 'PETUNJUK PENGISIAN TEMPLATE IMPORT');
-        $infoSheet->getStyle('A1')->applyFromArray([
-            'font' => ['bold' => true, 'size' => 13, 'color' => ['rgb' => '065F46']],
-        ]);
-        $infoSheet->getRowDimension(1)->setRowHeight(24);
-
-        $petunjuk = [
-            [2,  'Kolom', 'Keterangan', 'Contoh'],
-            [3,  'A - NIS', 'Nomor Induk Siswa. Harus unik, tidak boleh duplikat.', '2024001'],
-            [4,  'B - NAMA LENGKAP', 'Nama lengkap siswa sesuai data sekolah.', 'Ahmad Fauzan'],
-            [5,  'C - KELAS', 'Nama kelas siswa.', 'XI TKJ 1'],
-            [7,  'Aturan Umum:', '', ''],
-            [8,  '1.', 'Baris 3 adalah header, jangan dihapus.', ''],
-            [9,  '2.', 'Data dimulai dari baris 4.', ''],
-            [10, '3.', 'NIS yang sudah ada di sistem: tergantung mode import.', ''],
-            [11, '4.', 'Mode Tambahkan: NIS duplikat dilewati (tidak diubah).', ''],
-            [12, '5.', 'Mode Update: NIS duplikat akan diupdate nama & kelasnya.', ''],
-            [13, '6.', 'Token login akan digenerate otomatis untuk siswa baru.', ''],
-            [14, '7.', 'Format file yang didukung: .xlsx, .xls, .csv (maks 5MB).', ''],
-        ];
-
-        foreach ($petunjuk as $p) {
-            [$rowNum, $col1, $col2, $col3] = $p;
-            $infoSheet->setCellValue("A{$rowNum}", $col1);
-            $infoSheet->setCellValue("B{$rowNum}", $col2);
-            $infoSheet->setCellValue("C{$rowNum}", $col3);
-        }
-
-        // Style header tabel petunjuk
-        $infoSheet->getStyle('A2:C2')->applyFromArray([
-            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
-            'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                       'startColor' => ['rgb' => '047857']],
-        ]);
-
-        // Style judul aturan
-        $infoSheet->getStyle('A7')->applyFromArray([
-            'font' => ['bold' => true, 'size' => 11],
-        ]);
-
-        $infoSheet->getColumnDimension('A')->setWidth(22);
-        $infoSheet->getColumnDimension('B')->setWidth(60);
-        $infoSheet->getColumnDimension('C')->setWidth(20);
-
-        // Set active sheet ke sheet 1
-        $spreadsheet->setActiveSheetIndex(0);
-
-        // Tulis ke output
-        $writer   = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-        $filename = 'template_import_siswa_ipm.xlsx';
-
-        return response()->streamDownload(function () use ($writer) {
-            $writer->save('php://output');
-        }, $filename, [
-            'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        // Fallback CSV jika ZipArchive tidak terinstall di server
+        $filename = 'template_import_siswa_ipm.csv';
+        $headers = [
+            'Content-Type'        => 'text/csv; charset=UTF-8',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
             'Cache-Control'       => 'max-age=0',
-        ]);
+        ];
+
+        return response()->streamDownload(function () {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM
+            fputcsv($out, ['NIS', 'NAMA LENGKAP', 'KELAS']);
+            fputcsv($out, ['2024001', 'Ahmad Fauzan', 'XI TKJ 1']);
+            fputcsv($out, ['2024002', 'Budi Santoso', 'XI TKJ 2']);
+            fputcsv($out, ['2024003', 'Citra Dewi', 'XI AKL 1']);
+            fclose($out);
+        }, $filename, $headers);
     }
 
     public function importExcel(Request $request)
