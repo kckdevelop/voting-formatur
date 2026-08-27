@@ -254,35 +254,53 @@ class StudentManagementController extends Controller
                 'file.required' => 'File wajib dipilih.',
                 'file.max'      => 'Ukuran file maksimal 10MB.',
             ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Gagal memproses file upload: ' . $e->getMessage());
+        }
 
+        try {
             $file = $request->file('file');
-            $extension = strtolower($file->getClientOriginalExtension());
+            if (!$file || !$file->isValid()) {
+                return back()->with('error', 'File yang diupload tidak valid atau melebihi batas ukuran server.');
+            }
 
-            if (!in_array($extension, ['xlsx', 'xls', 'csv'])) {
+            $extension = strtolower($file->getClientOriginalExtension());
+            if (!in_array($extension, ['xlsx', 'xls', 'csv', 'txt'])) {
                 return back()->with('error', 'Format file tidak didukung. Harap upload file .xlsx, .xls, atau .csv.');
             }
 
             $mode = $request->input('mode', 'append');
             $rows = [];
 
-            // 1. Coba baca dengan PhpSpreadsheet jika kelas/ekstensi tersedia
-            try {
-                if (class_exists('PhpOffice\PhpSpreadsheet\IOFactory')) {
-                    $spreadsheet = IOFactory::load($file->getRealPath());
-                    $sheet       = $spreadsheet->getActiveSheet();
-                    $rows        = $sheet->toArray(null, true, true, true);
-                }
-            } catch (\Throwable $e) {
-                // Fallback jika file CSV dan PhpSpreadsheet gagal (misal ZipArchive tidak terinstall)
-                if ($extension === 'csv') {
-                    $rows = $this->parseCsvFile($file->getRealPath());
-                } else {
-                    return back()->with('error', 'Gagal membaca file Excel (' . $e->getMessage() . '). Pastikan ekstensi php-zip aktif di server atau gunakan format .csv.');
+            // Jika CSV / TXT, gunakan parser native CSV super ringan & cepat (bebas dependensi php-zip)
+            if (in_array($extension, ['csv', 'txt'])) {
+                $rows = $this->parseCsvFile($file->getRealPath());
+            } else {
+                // Untuk XLSX / XLS gunakan PhpSpreadsheet dengan setReadDataOnly(true) menghemat RAM hingga 90%
+                try {
+                    if (class_exists('PhpOffice\PhpSpreadsheet\IOFactory')) {
+                        $reader = IOFactory::createReaderForFile($file->getRealPath());
+                        if (method_exists($reader, 'setReadDataOnly')) {
+                            $reader->setReadDataOnly(true);
+                        }
+                        if (method_exists($reader, 'setReadEmptyCells')) {
+                            $reader->setReadEmptyCells(false);
+                        }
+                        $spreadsheet = $reader->load($file->getRealPath());
+                        $sheet       = $spreadsheet->getActiveSheet();
+                        $rows        = $sheet->toArray(null, true, true, true);
+                    } else {
+                        return back()->with('error', 'Library PhpSpreadsheet tidak terinstall di server. Silakan gunakan format file .csv.');
+                    }
+                } catch (\Throwable $e) {
+                    return back()->with('error', 'Gagal membaca file Excel (' . $e->getMessage() . '). Jika server tidak mendukung ekstensi php-zip, silakan simpan file sebagai format .csv (Comma Separated Values) lalu coba upload ulang.');
                 }
             }
 
             if (empty($rows)) {
-                return back()->with('error', 'File Excel/CSV kosong atau tidak dapat dibaca.');
+                return back()->with('error', 'File Excel/CSV kosong atau tidak dapat dibaca data di dalamnya.');
             }
 
             $imported = 0;
@@ -290,7 +308,6 @@ class StudentManagementController extends Controller
             $skipped  = 0;
             $errors   = [];
 
-            // Pre-fetch seluruh NIS yang ada di database dalam 1 query saja (menghilangkan N+1 query)
             $existingMap = Student::pluck('id', 'nis')->toArray();
             $newStudentsBatch = [];
             $seenNisInFile = [];
@@ -311,21 +328,26 @@ class StudentManagementController extends Controller
                 $firstRow = true;
 
                 foreach ($rows as $rowIndex => $row) {
+                    // Normalisasi array dari PhpSpreadsheet (key A, B, C) atau array numerik (0, 1, 2)
+                    $rawNis   = (string) ($row['A'] ?? $row[0] ?? '');
+                    $rawNama  = (string) ($row['B'] ?? $row[1] ?? '');
+                    $rawKelas = (string) ($row['C'] ?? $row[2] ?? '');
+
+                    // Hapus UTF-8 BOM (\xEF\xBB\xBF) dan trim whitespace
+                    $nis   = trim(preg_replace('/\x{EF}\x{BB}\x{BF}/', '', $rawNis));
+                    $nama  = trim(preg_replace('/\x{EF}\x{BB}\x{BF}/', '', $rawNama));
+                    $kelas = trim(preg_replace('/\x{EF}\x{BB}\x{BF}/', '', $rawKelas));
+
                     if ($firstRow) {
                         $firstRow = false;
-                        $cellA = strtoupper(trim((string)($row['A'] ?? $row[0] ?? '')));
-                        if (str_contains($cellA, 'NIS') || str_contains($cellA, 'TEMPLATE')) {
+                        $cellA = strtoupper($nis);
+                        if (str_contains($cellA, 'NIS') || str_contains($cellA, 'TEMPLATE') || str_contains($cellA, 'NO')) {
                             continue;
                         }
                     }
 
-                    // Normalisasi array dari PhpSpreadsheet (key A, B, C) atau array numerik (0, 1, 2)
-                    $nis   = trim((string) ($row['A'] ?? $row[0] ?? ''));
-                    $nama  = trim((string) ($row['B'] ?? $row[1] ?? ''));
-                    $kelas = trim((string) ($row['C'] ?? $row[2] ?? ''));
-
                     // Lewati header jika terbawa di baris lain
-                    if (strtoupper($nis) === 'NIS' || strtoupper($nama) === 'NAMA LENGKAP') {
+                    if (strtoupper($nis) === 'NIS' || strtoupper($nama) === 'NAMA LENGKAP' || strtoupper($nama) === 'NAMA') {
                         continue;
                     }
 
@@ -336,7 +358,7 @@ class StudentManagementController extends Controller
 
                     // Validasi kolom wajib
                     if (empty($nis) || empty($nama) || empty($kelas)) {
-                        $errors[] = "Baris {$rowIndex}: NIS/Nama/Kelas tidak boleh kosong.";
+                        $errors[] = "Baris " . ($rowIndex + 1) . ": NIS/Nama/Kelas tidak boleh kosong.";
                         $skipped++;
                         continue;
                     }
@@ -375,10 +397,10 @@ class StudentManagementController extends Controller
                     }
                 }
 
-                // Batch insert dalam chunk 200 data sekaligus (100x lebih cepat daripada insert 1 per 1)
+                // Batch insert dalam chunk 100 data sekaligus dengan insertOrIgnore untuk mencegah SQL duplicate error
                 if (!empty($newStudentsBatch)) {
-                    foreach (array_chunk($newStudentsBatch, 200) as $chunk) {
-                        Student::insert($chunk);
+                    foreach (array_chunk($newStudentsBatch, 100) as $chunk) {
+                        Student::insertOrIgnore($chunk);
                     }
                 }
             });
@@ -391,7 +413,7 @@ class StudentManagementController extends Controller
             $message = "Import selesai! Ditambahkan: {$imported} siswa";
             if ($updated > 0) $message .= ", Diperbarui: {$updated}";
             if ($skipped > 0) $message .= ", Dilewati: {$skipped}";
-            if (!empty($errors)) $message .= '. Error: ' . implode('; ', array_slice($errors, 0, 3));
+            if (!empty($errors)) $message .= '. Info: ' . implode('; ', array_slice($errors, 0, 3));
 
             return back()->with('success', $message);
         } catch (\Throwable $e) {
@@ -406,10 +428,12 @@ class StudentManagementController extends Controller
     {
         $rows = [];
         if (($handle = fopen($filePath, 'r')) !== false) {
-            while (($data = fgetcsv($handle, 1000, ',')) !== false) {
+            while (($data = fgetcsv($handle, 2000, ',')) !== false) {
                 if (count($data) === 1 && str_contains($data[0], ';')) {
                     // Coba pisah dengan titik koma jika format CSV Indonesia (semicolon)
                     $data = explode(';', $data[0]);
+                } elseif (count($data) === 1 && str_contains($data[0], "\t")) {
+                    $data = explode("\t", $data[0]);
                 }
                 $rows[] = [
                     'A' => $data[0] ?? '',

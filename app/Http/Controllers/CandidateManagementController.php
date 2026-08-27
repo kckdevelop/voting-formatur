@@ -167,28 +167,46 @@ class CandidateManagementController extends Controller
                 'file.required' => 'File wajib dipilih.',
                 'file.max'      => 'Ukuran file maksimal 10MB.',
             ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Gagal memproses file upload: ' . $e->getMessage());
+        }
 
+        try {
             $file = $request->file('file');
-            $extension = strtolower($file->getClientOriginalExtension());
+            if (!$file || !$file->isValid()) {
+                return back()->with('error', 'File yang diupload tidak valid atau melebihi batas ukuran server.');
+            }
 
-            if (!in_array($extension, ['xlsx', 'xls', 'csv'])) {
+            $extension = strtolower($file->getClientOriginalExtension());
+            if (!in_array($extension, ['xlsx', 'xls', 'csv', 'txt'])) {
                 return back()->with('error', 'Format file tidak didukung. Harap upload file .xlsx, .xls, atau .csv.');
             }
 
             $mode = $request->input('mode', 'append');
             $rows = [];
 
-            try {
-                if (class_exists('PhpOffice\PhpSpreadsheet\IOFactory')) {
-                    $spreadsheet = IOFactory::load($file->getRealPath());
-                    $sheet       = $spreadsheet->getActiveSheet();
-                    $rows        = $sheet->toArray(null, true, true, true);
-                }
-            } catch (\Throwable $e) {
-                if ($extension === 'csv') {
-                    $rows = $this->parseCsvFile($file->getRealPath());
-                } else {
-                    return back()->with('error', 'Gagal membaca file Excel (' . $e->getMessage() . '). Gunakan format .csv jika ekstensi php-zip tidak tersedia di server.');
+            if (in_array($extension, ['csv', 'txt'])) {
+                $rows = $this->parseCsvFile($file->getRealPath());
+            } else {
+                try {
+                    if (class_exists('PhpOffice\PhpSpreadsheet\IOFactory')) {
+                        $reader = IOFactory::createReaderForFile($file->getRealPath());
+                        if (method_exists($reader, 'setReadDataOnly')) {
+                            $reader->setReadDataOnly(true);
+                        }
+                        if (method_exists($reader, 'setReadEmptyCells')) {
+                            $reader->setReadEmptyCells(false);
+                        }
+                        $spreadsheet = $reader->load($file->getRealPath());
+                        $sheet       = $spreadsheet->getActiveSheet();
+                        $rows        = $sheet->toArray(null, true, true, true);
+                    } else {
+                        return back()->with('error', 'Library PhpSpreadsheet tidak terinstall di server. Silakan gunakan format file .csv.');
+                    }
+                } catch (\Throwable $e) {
+                    return back()->with('error', 'Gagal membaca file Excel (' . $e->getMessage() . '). Jika server tidak mendukung ekstensi php-zip, silakan simpan file sebagai format .csv lalu coba upload ulang.');
                 }
             }
 
@@ -202,41 +220,41 @@ class CandidateManagementController extends Controller
             $errors   = [];
             $firstRow = true;
 
-            // Dapatkan nomor urut tertinggi jika mode append
             $maxNomorUrut = Candidate::max('nomor_urut') ?? 0;
 
             foreach ($rows as $rowIndex => $row) {
-                // Lewati baris 1-3 jika format template (A1 Judul, A2 Catatan, A3 Header)
-                // atau lewati baris 1 jika file standar
+                $rawNomorUrut = (string) ($row['A'] ?? $row[0] ?? '');
+                $rawNama      = (string) ($row['B'] ?? $row[1] ?? '');
+                $rawKelas     = (string) ($row['C'] ?? $row[2] ?? '');
+                $rawNis       = (string) ($row['D'] ?? $row[3] ?? '');
+                $rawVisi      = (string) ($row['E'] ?? $row[4] ?? '');
+                $rawMisi      = (string) ($row['F'] ?? $row[5] ?? '');
+
+                $nomorUrutRaw = trim(preg_replace('/\x{EF}\x{BB}\x{BF}/', '', $rawNomorUrut));
+                $nama         = trim(preg_replace('/\x{EF}\x{BB}\x{BF}/', '', $rawNama));
+                $kelas        = trim(preg_replace('/\x{EF}\x{BB}\x{BF}/', '', $rawKelas));
+                $nis          = trim(preg_replace('/\x{EF}\x{BB}\x{BF}/', '', $rawNis));
+                $visi         = trim(preg_replace('/\x{EF}\x{BB}\x{BF}/', '', $rawVisi));
+                $misi         = trim(preg_replace('/\x{EF}\x{BB}\x{BF}/', '', $rawMisi));
+
                 if ($firstRow) {
                     $firstRow = false;
-                    // Jika baris 1 mengandung kata TEMPLATE / NOMOR, ini header
-                    $cellA = strtoupper(trim((string)($row['A'] ?? $row[0] ?? '')));
+                    $cellA = strtoupper($nomorUrutRaw);
                     if (str_contains($cellA, 'TEMPLATE') || str_contains($cellA, 'NOMOR') || str_contains($cellA, 'NO')) {
                         continue;
                     }
                 }
 
-                $nomorUrutRaw = trim((string) ($row['A'] ?? $row[0] ?? ''));
-                $nama         = trim((string) ($row['B'] ?? $row[1] ?? ''));
-                $kelas        = trim((string) ($row['C'] ?? $row[2] ?? ''));
-                $nis          = trim((string) ($row['D'] ?? $row[3] ?? ''));
-                $visi         = trim((string) ($row['E'] ?? $row[4] ?? ''));
-                $misi         = trim((string) ($row['F'] ?? $row[5] ?? ''));
-
-                // Lewati header (Baris "NOMOR URUT", "NAMA LENGKAP", dsb)
                 if (strtoupper($nomorUrutRaw) === 'NOMOR URUT' || strtoupper($nama) === 'NAMA LENGKAP' || str_contains(strtoupper($nomorUrutRaw), 'BARIS')) {
                     continue;
                 }
 
-                // Lewati baris kosong
                 if (empty($nama) && empty($kelas)) {
                     continue;
                 }
 
-                // Validasi nama & kelas wajib
                 if (empty($nama) || empty($kelas)) {
-                    $errors[] = "Baris {$rowIndex}: Nama dan Kelas tidak boleh kosong.";
+                    $errors[] = "Baris " . ($rowIndex + 1) . ": Nama dan Kelas tidak boleh kosong.";
                     $skipped++;
                     continue;
                 }
@@ -245,7 +263,6 @@ class CandidateManagementController extends Controller
                     ? intval($nomorUrutRaw) 
                     : ++$maxNomorUrut;
 
-                // Cari berdasarkan nomor urut atau nama
                 $existing = Candidate::where('nomor_urut', $nomorUrut)
                     ->orWhere(function($q) use ($nama) {
                         $q->where('nama', $nama);
@@ -287,7 +304,7 @@ class CandidateManagementController extends Controller
             $message = "Import selesai! Ditambahkan: {$imported} calon";
             if ($updated > 0) $message .= ", Diperbarui: {$updated}";
             if ($skipped > 0) $message .= ", Dilewati: {$skipped}";
-            if (!empty($errors)) $message .= '. Error: ' . implode('; ', array_slice($errors, 0, 3));
+            if (!empty($errors)) $message .= '. Info: ' . implode('; ', array_slice($errors, 0, 3));
 
             return back()->with('success', $message);
         } catch (\Throwable $e) {
@@ -299,9 +316,11 @@ class CandidateManagementController extends Controller
     {
         $rows = [];
         if (($handle = fopen($filePath, 'r')) !== false) {
-            while (($data = fgetcsv($handle, 1000, ',')) !== false) {
+            while (($data = fgetcsv($handle, 2000, ',')) !== false) {
                 if (count($data) === 1 && str_contains($data[0], ';')) {
                     $data = explode(';', $data[0]);
+                } elseif (count($data) === 1 && str_contains($data[0], "\t")) {
+                    $data = explode("\t", $data[0]);
                 }
                 $rows[] = [
                     'A' => $data[0] ?? '',
