@@ -112,6 +112,22 @@ class StudentManagementController extends Controller
         return back()->with('success', "Token siswa {$student->nama} berhasil diperbarui menjadi: {$plainToken}");
     }
 
+    public function bulkDelete(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:students,id',
+        ]);
+
+        $ids = $request->input('ids');
+        $count = Student::whereIn('id', $ids)->count();
+        Student::whereIn('id', $ids)->delete();
+
+        AuditLogService::log('BULK_DELETE_STUDENTS', "Hapus massal {$count} data siswa/voter. ID: " . implode(', ', $ids));
+
+        return back()->with('success', "Berhasil menghapus {$count} data siswa/voter secara massal.");
+    }
+
     public function bulkRegenerateTokens(Request $request)
     {
         $students = Student::all();

@@ -47,6 +47,7 @@ Route::prefix('admin')->group(function () {
         Route::post('/students/import', [StudentManagementController::class, 'importExcel'])->name('admin.students.import');
         Route::get('/students/import/template', [StudentManagementController::class, 'downloadImportTemplate'])->name('admin.students.import.template');
         Route::post('/students/bulk-regenerate-tokens', [StudentManagementController::class, 'bulkRegenerateTokens'])->name('admin.students.bulk-regenerate-tokens');
+        Route::delete('/students/bulk-delete', [StudentManagementController::class, 'bulkDelete'])->name('admin.students.bulk-delete');
         Route::get('/students/qr-cards', [StudentManagementController::class, 'qrCards'])->name('admin.students.qr-cards');
         Route::put('/students/{student}', [StudentManagementController::class, 'update'])->name('admin.students.update');
         Route::delete('/students/{student}', [StudentManagementController::class, 'destroy'])->name('admin.students.destroy');
@@ -56,6 +57,7 @@ Route::prefix('admin')->group(function () {
         // Candidate Management
         Route::get('/candidates', [CandidateManagementController::class, 'index'])->name('admin.candidates.index');
         Route::post('/candidates', [CandidateManagementController::class, 'store'])->name('admin.candidates.store');
+        Route::delete('/candidates/bulk-delete', [CandidateManagementController::class, 'bulkDelete'])->name('admin.candidates.bulk-delete');
         Route::put('/candidates/{candidate}', [CandidateManagementController::class, 'update'])->name('admin.candidates.update');
         Route::delete('/candidates/{candidate}', [CandidateManagementController::class, 'destroy'])->name('admin.candidates.destroy');
 

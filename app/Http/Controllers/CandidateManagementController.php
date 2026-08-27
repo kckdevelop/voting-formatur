@@ -116,4 +116,27 @@ class CandidateManagementController extends Controller
 
         return back()->with('success', "Calon formatur {$nama} berhasil dihapus.");
     }
+
+    public function bulkDelete(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:candidates,id',
+        ]);
+
+        $ids = $request->input('ids');
+        $candidates = Candidate::whereIn('id', $ids)->get();
+
+        foreach ($candidates as $candidate) {
+            if ($candidate->foto && Storage::disk('public')->exists($candidate->foto)) {
+                Storage::disk('public')->delete($candidate->foto);
+            }
+            $candidate->delete();
+        }
+
+        $count = count($ids);
+        AuditLogService::log('BULK_DELETE_CANDIDATES', "Hapus massal {$count} calon formatur. ID: " . implode(', ', $ids));
+
+        return back()->with('success', "Berhasil menghapus {$count} calon formatur secara massal.");
+    }
 }

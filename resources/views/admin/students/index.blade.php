@@ -1,7 +1,42 @@
 @extends('layouts.admin', ['headerTitle' => 'Manajemen Data Siswa / Voter'])
 
 @section('content')
-<div class="space-y-6" x-data="{ addModalOpen: false, editModalOpen: false, importModalOpen: false, activeStudent: null }">
+<div class="space-y-6" x-data="{
+    addModalOpen: false,
+    editModalOpen: false,
+    importModalOpen: false,
+    activeStudent: null,
+    selectedIds: [],
+    selectAll: false,
+    toggleSelectAll(allIds) {
+        if (this.selectAll) {
+            this.selectedIds = allIds;
+        } else {
+            this.selectedIds = [];
+        }
+    },
+    toggleOne(id) {
+        const idx = this.selectedIds.indexOf(id);
+        if (idx === -1) {
+            this.selectedIds.push(id);
+        } else {
+            this.selectedIds.splice(idx, 1);
+        }
+        this.selectAll = (this.selectedIds.length === this.allIdsOnPage.length);
+    },
+    get allIdsOnPage() {
+        return Array.from(document.querySelectorAll('.row-checkbox')).map(el => parseInt(el.value));
+    },
+    confirmBulkDelete() {
+        if (this.selectedIds.length === 0) {
+            alert('Pilih minimal satu data siswa terlebih dahulu.');
+            return;
+        }
+        if (confirm('Hapus ' + this.selectedIds.length + ' siswa yang dipilih? Tindakan ini tidak bisa dibatalkan!')) {
+            document.getElementById('bulk-delete-form-students').submit();
+        }
+    }
+}">
     
     <!-- Top Action Bar & Filters -->
     <div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
@@ -69,12 +104,53 @@
         </div>
     </div>
 
+    <!-- Bulk Delete Toolbar (muncul ketika ada yang dipilih) -->
+    <div x-show="selectedIds.length > 0" x-cloak
+        class="bg-rose-50 border border-rose-200 rounded-2xl px-5 py-3 flex items-center justify-between gap-4 shadow-sm">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-rose-100 rounded-xl flex items-center justify-center">
+                <svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+            </div>
+            <span class="text-sm font-extrabold text-rose-800">
+                <span x-text="selectedIds.length"></span> siswa dipilih
+            </span>
+        </div>
+        <div class="flex items-center gap-3">
+            <button type="button" @click="selectedIds = []; selectAll = false;"
+                class="px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition">
+                Batalkan Pilihan
+            </button>
+            <!-- Hidden Bulk Delete Form -->
+            <form id="bulk-delete-form-students" action="{{ route('admin.students.bulk-delete') }}" method="POST">
+                @csrf
+                @method('DELETE')
+                <template x-for="id in selectedIds" :key="id">
+                    <input type="hidden" name="ids[]" :value="id">
+                </template>
+            </form>
+            <button type="button" @click="confirmBulkDelete()"
+                class="px-4 py-1.5 text-xs font-extrabold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition flex items-center gap-1.5 shadow">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+                Hapus yang Dipilih
+            </button>
+        </div>
+    </div>
+
     <!-- Students Table -->
     <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
             <table class="w-full text-left text-xs">
                 <thead class="bg-slate-50 border-b border-slate-200 text-slate-400 font-extrabold uppercase tracking-wider">
                     <tr>
+                        <th class="py-4 px-4">
+                            <input type="checkbox" class="rounded accent-rose-600 cursor-pointer"
+                                x-model="selectAll"
+                                @change="toggleSelectAll(allIdsOnPage)">
+                        </th>
                         <th class="py-4 px-4">#</th>
                         <th class="py-4 px-4">NIS</th>
                         <th class="py-4 px-4">Nama Siswa</th>
@@ -87,7 +163,13 @@
                 </thead>
                 <tbody class="divide-y divide-slate-100 text-slate-700">
                     @forelse($students as $index => $student)
-                        <tr class="hover:bg-slate-50/80 transition">
+                        <tr class="hover:bg-slate-50/80 transition" :class="selectedIds.includes({{ $student->id }}) ? 'bg-rose-50/60' : ''">
+                            <td class="py-3 px-4">
+                                <input type="checkbox" class="row-checkbox rounded accent-rose-600 cursor-pointer"
+                                    value="{{ $student->id }}"
+                                    :checked="selectedIds.includes({{ $student->id }})"
+                                    @change="toggleOne({{ $student->id }})">
+                            </td>
                             <td class="py-3 px-4 font-mono text-slate-400">{{ $students->firstItem() + $index }}</td>
                             <td class="py-3 px-4 font-mono font-bold text-slate-900">{{ $student->nis }}</td>
                             <td class="py-3 px-4 font-bold text-slate-900">{{ $student->nama }}</td>
@@ -147,7 +229,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="8" class="py-6 text-center text-slate-400">Tidak ada data siswa yang cocok.</td></tr>
+                        <tr><td colspan="9" class="py-6 text-center text-slate-400">Tidak ada data siswa yang cocok.</td></tr>
                     @endforelse
                 </tbody>
             </table>
