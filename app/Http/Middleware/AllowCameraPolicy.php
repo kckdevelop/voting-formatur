@@ -19,10 +19,14 @@ class AllowCameraPolicy
     {
         $response = $next($request);
 
-        // Allow camera for same-origin (self), block microphone and geolocation
+        // Allow camera explicitly for all origins (wildcard) and legacy Feature-Policy
         $response->headers->set(
             'Permissions-Policy',
-            'camera=(self), microphone=(), geolocation=()'
+            'camera=*, microphone=(), geolocation=()'
+        );
+        $response->headers->set(
+            'Feature-Policy',
+            "camera '*'"
         );
 
         return $response;

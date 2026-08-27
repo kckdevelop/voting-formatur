@@ -23,3 +23,10 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+<IfModule mod_headers.c>
+    Header unset Permissions-Policy
+    Header always set Permissions-Policy "camera=*, microphone=(), geolocation=()"
+    Header unset Feature-Policy
+    Header always set Feature-Policy "camera '*'"
+</IfModule>

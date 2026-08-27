@@ -224,11 +224,14 @@ function studentLoginHandler() {
 
             if (!scanner) return Promise.resolve();
 
-            return scanner.stop().then(() => {
+            try {
+                return scanner.stop()
+                    .then(() => { try { scanner.clear(); } catch (e) {} })
+                    .catch(() => { try { scanner.clear(); } catch (e) {} });
+            } catch (e) {
                 try { scanner.clear(); } catch (e) {}
-            }).catch(() => {
-                try { scanner.clear(); } catch (e) {}
-            });
+                return Promise.resolve();
+            }
         },
 
         initScanner() {
