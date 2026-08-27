@@ -154,23 +154,29 @@
 
                     <!-- Status Message & Retry Action -->
                     <div x-show="qrMessage" class="mt-4 p-3.5 rounded-2xl text-xs font-semibold text-center leading-relaxed" :class="qrSuccess ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'">
-                        <p x-text="qrMessage"></p>
+                        <p x-text="qrMessage" style="white-space: pre-line;"></p>
                         <template x-if="!qrSuccess && !isHttp">
                             <button type="button" @click="initScanner()" class="mt-2.5 px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold rounded-xl shadow-sm transition inline-flex items-center">
                                 <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                                Coba Minta Izin Kamera Lagi
+                                Coba Lagi
                             </button>
                         </template>
                     </div>
 
                     <!-- Alternative Fallback: File / Photo Upload -->
+                    <!-- When camera fails, make this button primary/green so user knows it's the main alternative -->
                     <div class="mt-4 pt-4 border-t border-slate-100 flex flex-col items-center">
-                        <label for="qr-file-input" class="w-full py-2.5 px-4 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 text-slate-700 text-xs font-bold rounded-xl cursor-pointer flex items-center justify-center transition shadow-sm border border-slate-200">
-                            <svg class="w-4 h-4 mr-2 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                            Upload / Ambil Foto QR Code
+                        <label for="qr-file-input"
+                            :class="cameraFailed
+                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-md shadow-emerald-200'
+                                : 'bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 text-slate-700 border-slate-200'"
+                            class="w-full py-3 px-4 text-xs font-bold rounded-xl cursor-pointer flex items-center justify-center transition shadow-sm border">
+                            <svg class="w-4 h-4 mr-2 flex-shrink-0" :class="cameraFailed ? 'text-white' : 'text-emerald-600'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            <span x-text="cameraFailed ? '📷 Gunakan Ini: Upload / Ambil Foto QR Code' : 'Upload / Ambil Foto QR Code'"></span>
                         </label>
                         <input id="qr-file-input" type="file" accept="image/*" capture="environment" class="hidden" @change="handleFileUpload($event)">
-                        <p class="text-[10px] text-slate-400 mt-1">Gunakan ini jika kamera live tidak muncul atau terblokir di HP</p>
+                        <p class="text-[10px] text-slate-400 mt-1.5 text-center"
+                           x-text="cameraFailed ? 'Ketuk tombol hijau di atas → pilih foto QR Code dari galeri atau ambil foto baru' : 'Gunakan ini jika kamera live tidak muncul atau terblokir di HP'"></p>
                     </div>
                 </div>
 
@@ -193,11 +199,13 @@ function studentLoginHandler() {
         qrScanner: null,
         qrMessage: '',
         qrSuccess: false,
+        cameraFailed: false,
         isHttp: window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1',
 
         openQrModal() {
             this.qrModalOpen = true;
             this.qrMessage = '';
+            this.cameraFailed = false;
             this.$nextTick(() => {
                 this.initScanner();
             });
@@ -205,114 +213,154 @@ function studentLoginHandler() {
 
         closeQrModal() {
             this.qrModalOpen = false;
-            if (this.qrScanner) {
-                try {
-                    this.qrScanner.stop().then(() => {
-                        this.qrScanner.clear();
-                    }).catch(err => console.error(err));
-                } catch(e) {}
-            }
+            this.stopAndClear().catch(() => {});
+        },
+
+        /**
+         * Stop active scanner and clear DOM. Returns a Promise.
+         */
+        stopAndClear() {
+            const self = this;
+            const scanner = self.qrScanner;
+            self.qrScanner = null;
+
+            // Clear the #reader div manually to prevent "element already in use" errors
+            const readerEl = document.getElementById('reader');
+            if (readerEl) readerEl.innerHTML = '';
+
+            if (!scanner) return Promise.resolve();
+
+            return scanner.stop().then(() => {
+                try { scanner.clear(); } catch (e) {}
+            }).catch(() => {
+                try { scanner.clear(); } catch (e) {}
+            });
         },
 
         initScanner() {
             const self = this;
+
             if (typeof Html5Qrcode === 'undefined') {
-                self.qrMessage = 'Library QR Scanner tidak dapat dimuat. Pastikan koneksi internet terhubung.';
+                self.qrMessage = 'Library QR Scanner tidak dapat dimuat. Pastikan koneksi internet stabil lalu muat ulang halaman.';
                 self.qrSuccess = false;
+                self.cameraFailed = true;
                 return;
             }
 
-            self.qrMessage = 'Meminta izin akses kamera browser...';
-            self.qrSuccess = true;
-
-            if (self.qrScanner) {
-                try {
-                    self.qrScanner.stop().catch(() => {}).finally(() => {
-                        self.startCameraStream();
-                    });
-                    return;
-                } catch(e) {}
+            if (self.isHttp) {
+                self.qrMessage = 'Kamera live memerlukan HTTPS. Gunakan tombol "Upload / Ambil Foto QR Code" di bawah sebagai alternatif.';
+                self.qrSuccess = false;
+                self.cameraFailed = true;
+                return;
             }
 
-            self.startCameraStream();
+            self.qrMessage = 'Meminta izin akses kamera...';
+            self.qrSuccess = true;
+            self.cameraFailed = false;
+
+            self.stopAndClear().then(() => {
+                self.startCameraStream();
+            });
         },
 
         startCameraStream() {
             const self = this;
 
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                self.handleCameraError("Browser HP Anda tidak mendukung streaming kamera live (API MediaDevices tidak tersedia atau situs diakses via HTTP).");
+                self.handleCameraError({ name: 'NotSupportedError' });
                 return;
             }
+
+            // Clear DOM once more to be safe
+            const readerEl = document.getElementById('reader');
+            if (readerEl) readerEl.innerHTML = '';
 
             const html5QrCode = new Html5Qrcode("reader");
             self.qrScanner = html5QrCode;
 
-            const qrboxFunction = function(viewfinderWidth, viewfinderHeight) {
-                const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                const size = Math.floor(minEdge * 0.75);
-                return { width: Math.max(size, 180), height: Math.max(size, 180) };
+            const qrboxFn = (w, h) => {
+                const edge = Math.floor(Math.min(w, h) * 0.78);
+                return { width: Math.max(edge, 180), height: Math.max(edge, 180) };
             };
+            const config = { fps: 10, qrbox: qrboxFn, aspectRatio: 1.0 };
 
-            const config = { 
-                fps: 10, 
-                qrbox: qrboxFunction,
-                aspectRatio: 1.0
-            };
-
-            // Direct start using facingMode environment (back camera)
             html5QrCode.start(
-                { facingMode: "environment" },
+                { facingMode: { ideal: "environment" } },
                 config,
                 (decodedText) => self.processQrPayload(decodedText),
                 () => {}
             )
             .then(() => {
-                self.qrMessage = 'Kamera aktif! Arahkan kamera ke QR Code.';
+                self.qrMessage = '✅ Kamera aktif! Arahkan ke QR Code pada kartu pemilih.';
                 self.qrSuccess = true;
+                self.cameraFailed = false;
             })
-            .catch((err) => {
-                console.warn("Direct facingMode environment failed, trying getCameras fallback...", err);
-                
-                return Html5Qrcode.getCameras().then(devices => {
-                    if (devices && devices.length > 0) {
-                        const backCamera = devices.find(d => 
-                            d.label.toLowerCase().includes('back') || 
-                            d.label.toLowerCase().includes('rear') || 
-                            d.label.toLowerCase().includes('belakang') ||
-                            d.label.toLowerCase().includes('environment') ||
-                            d.label.toLowerCase().includes('0')
-                        ) || devices[devices.length - 1];
+            .catch((err1) => {
+                console.warn('facingMode ideal env failed, trying getCameras...', err1);
 
-                        return html5QrCode.start(
+                // Check if it's a hard permission denial before trying fallback
+                const errName = err1 && err1.name ? err1.name : String(err1);
+                if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
+                    self.handleCameraError({ name: 'NotAllowedError' });
+                    return Promise.reject('handled');
+                }
+
+                return Html5Qrcode.getCameras().then(devices => {
+                    if (!devices || devices.length === 0) throw err1;
+
+                    const backCamera = devices.find(d =>
+                        /back|rear|belakang|environment/i.test(d.label)
+                    ) || devices[devices.length - 1];
+
+                    // Must create a fresh instance after a failed start
+                    return self.stopAndClear().then(() => {
+                        if (document.getElementById('reader')) document.getElementById('reader').innerHTML = '';
+                        const html5QrCode2 = new Html5Qrcode("reader");
+                        self.qrScanner = html5QrCode2;
+                        return html5QrCode2.start(
                             backCamera.id,
                             config,
                             (decodedText) => self.processQrPayload(decodedText),
                             () => {}
                         ).then(() => {
-                            self.qrMessage = 'Kamera aktif! Arahkan kamera ke QR Code.';
+                            self.qrMessage = '✅ Kamera aktif! Arahkan ke QR Code pada kartu pemilih.';
                             self.qrSuccess = true;
+                            self.cameraFailed = false;
                         });
-                    } else {
-                        throw err;
-                    }
+                    });
                 });
             })
             .catch((err) => {
-                console.error("Camera start failed completely:", err);
-                self.handleCameraError(err);
+                if (err !== 'handled') {
+                    console.error('Camera start failed:', err);
+                    self.handleCameraError(err);
+                }
             });
         },
 
         handleCameraError(err) {
-            let errorMsg = 'Tidak dapat mengakses kamera live. ';
+            const errName = (err && err.name) ? err.name : (typeof err === 'string' ? err : '');
+            let msg = '';
+
             if (this.isHttp) {
-                errorMsg += 'Situs ini diakses melalui HTTP (bukan HTTPS). Gunakan URL https:// atau pakai tombol "Upload / Ambil Foto QR Code" di bawah.';
+                msg = '🔒 Kamera memerlukan HTTPS. Hubungi panitia untuk mengaktifkan HTTPS, atau gunakan tombol "Upload Foto QR" di bawah.';
+            } else if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
+                msg = '🚫 Izin kamera ditolak.\n\nCara reset izin:\n• Chrome: ketuk ikon gembok/kamera di address bar → Izinkan\n• Safari: Pengaturan → Safari → Kamera → Izinkan\n\nAtau gunakan tombol "Upload Foto QR" di bawah.';
+            } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
+                msg = '📵 Kamera tidak ditemukan di perangkat ini. Gunakan tombol "Upload / Ambil Foto QR Code" di bawah.';
+            } else if (errName === 'NotReadableError' || errName === 'TrackStartError') {
+                msg = '⚠️ Kamera sedang digunakan aplikasi lain (mis. WhatsApp / Zoom). Tutup aplikasi lain lalu tekan "Coba Lagi", atau gunakan tombol "Upload Foto QR" di bawah.';
+            } else if (errName === 'NotSupportedError' || errName === 'TypeError') {
+                msg = '❌ Browser ini tidak mendukung akses kamera live. Gunakan Chrome/Safari versi terbaru, atau gunakan tombol "Upload / Ambil Foto QR Code" di bawah.';
+            } else if (errName === 'OverconstrainedError') {
+                msg = '📷 Kamera belakang tidak tersedia. Menekan "Coba Lagi" untuk mencoba kamera lain, atau gunakan tombol "Upload Foto QR" di bawah.';
             } else {
-                errorMsg += 'Izinkan akses kamera pada popup browser HP Anda atau gunakan tombol "Upload / Ambil Foto QR Code" di bawah.';
+                msg = '❌ Tidak dapat mengakses kamera live.\n\nSilakan:\n1. Izinkan akses kamera pada popup browser\n2. Atau gunakan tombol "Upload / Ambil Foto QR Code" di bawah';
             }
-            this.qrMessage = errorMsg;
+
+            this.qrMessage = msg;
             this.qrSuccess = false;
+            this.cameraFailed = true;
         },
 
         handleFileUpload(event) {
@@ -320,73 +368,76 @@ function studentLoginHandler() {
             if (!file) return;
 
             const self = this;
-            self.qrMessage = 'Membaca gambar QR Code...';
+            self.qrMessage = '⏳ Membaca gambar QR Code...';
             self.qrSuccess = true;
 
-            const processFile = () => {
+            const doScanFile = () => {
+                const readerEl = document.getElementById('reader');
+                if (readerEl) readerEl.innerHTML = '';
+
                 const fileScanner = new Html5Qrcode("reader");
-                fileScanner.scanFile(file, true)
+                fileScanner.scanFile(file, /* showImage= */ true)
                     .then(decodedText => {
+                        try { fileScanner.clear(); } catch(e) {}
                         self.processQrPayload(decodedText);
                     })
-                    .catch(err => {
-                        self.qrMessage = 'QR Code tidak terdeteksi dari foto. Pastikan foto QR Code jelas, fokus, dan terang.';
+                    .catch(() => {
+                        try { fileScanner.clear(); } catch(e) {}
+                        self.qrMessage = '❌ QR Code tidak terdeteksi dari foto ini.\n\nPastikan:\n• Foto cukup terang & fokus\n• Seluruh QR Code terlihat penuh\n• Gambar tidak buram';
                         self.qrSuccess = false;
                     });
             };
 
-            if (self.qrScanner) {
-                try {
-                    self.qrScanner.stop().then(() => {
-                        self.qrScanner.clear();
-                        self.qrScanner = null;
-                        processFile();
-                    }).catch(() => {
-                        self.qrScanner = null;
-                        processFile();
-                    });
-                } catch(e) {
-                    self.qrScanner = null;
-                    processFile();
-                }
-            } else {
-                processFile();
-            }
+            // Stop live camera first if running, then scan file
+            self.stopAndClear().then(() => {
+                doScanFile();
+            }).catch(() => {
+                doScanFile();
+            });
+
+            // Reset input so the same file can be re-selected
+            event.target.value = '';
         },
 
         processQrPayload(rawPayload) {
             const self = this;
-            self.qrMessage = 'Memproses data QR Code...';
+            self.qrMessage = '⏳ Memproses data QR Code...';
             self.qrSuccess = true;
 
             if (self.qrScanner) {
                 try { self.qrScanner.pause(); } catch(e) {}
             }
 
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            if (!csrfMeta) {
+                self.qrMessage = '❌ Token CSRF tidak ditemukan. Muat ulang halaman lalu coba lagi.';
+                self.qrSuccess = false;
+                return;
+            }
+
             fetch('{{ route("student.login.qr") }}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    'X-CSRF-TOKEN': csrfMeta.getAttribute('content')
                 },
                 body: JSON.stringify({ qr_payload: rawPayload })
             })
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    self.qrMessage = 'Login berhasil! Mengarahkan ke halaman voting...';
+                    self.qrMessage = '✅ Login berhasil! Mengarahkan ke halaman voting...';
                     self.qrSuccess = true;
-                    setTimeout(() => {
-                        window.location.href = data.redirect;
-                    }, 500);
+                    self.stopAndClear().catch(() => {});
+                    setTimeout(() => { window.location.href = data.redirect; }, 600);
                 } else {
-                    self.qrMessage = data.message || 'Login QR Code gagal.';
+                    self.qrMessage = '❌ ' + (data.message || 'QR Code tidak valid.');
                     self.qrSuccess = false;
                     if (self.qrScanner) try { self.qrScanner.resume(); } catch(e) {}
                 }
             })
-            .catch(err => {
-                self.qrMessage = 'Terjadi kesalahan sistem saat memproses QR Code.';
+            .catch(() => {
+                self.qrMessage = '❌ Gagal terhubung ke server. Periksa koneksi internet lalu coba lagi.';
                 self.qrSuccess = false;
                 if (self.qrScanner) try { self.qrScanner.resume(); } catch(e) {}
             });
@@ -395,3 +446,5 @@ function studentLoginHandler() {
 }
 </script>
 @endpush
+
+
