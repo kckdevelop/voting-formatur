@@ -1,0 +1,294 @@
+@php
+    $perPage = $perPage ?? 15;
+
+    if ($perPage == 10) {
+        $orientation = 'portrait';
+        $cols = 2;
+        $rows = 5;
+        $cardHeightPrint = '52mm';
+        $pageHeightPrint = '280mm';
+        $qrSize = 64;
+        $marginPrint = '8mm';
+
+        $logoSize = 'w-7 h-7 text-[10px]';
+        $titleSize = 'text-[10px]';
+        $subTitleSize = 'text-[8px]';
+        $labelSize = 'text-[8px]';
+        $nameSize = 'text-xs';
+        $infoTextSize = 'text-[11px]';
+        $tokenSize = 'text-[11px] px-1.5 py-0.5';
+        $qrBoxSize = 'w-16 h-16 sm:w-20 sm:h-20';
+        $footerSize = 'text-[8px]';
+        $cardPadding = 'p-2.5 sm:p-3';
+        $bodyGap = 'my-1.5 gap-2';
+    } elseif ($perPage == 20) {
+        $orientation = 'landscape';
+        $cols = 5;
+        $rows = 4;
+        $cardHeightPrint = '47mm';
+        $pageHeightPrint = '200mm';
+        $qrSize = 42;
+        $marginPrint = '5mm';
+
+        $logoSize = 'w-5 h-5 text-[8px]';
+        $titleSize = 'text-[8.5px]';
+        $subTitleSize = 'text-[6.5px]';
+        $labelSize = 'text-[6.5px]';
+        $nameSize = 'text-[9.5px]';
+        $infoTextSize = 'text-[8.5px]';
+        $tokenSize = 'text-[8.5px] px-1 py-0.2';
+        $qrBoxSize = 'w-12 h-12 sm:w-13 sm:h-13';
+        $footerSize = 'text-[6.5px]';
+        $cardPadding = 'p-1.5';
+        $bodyGap = 'my-0.5 gap-1';
+    } else { // 15 default
+        $orientation = 'landscape';
+        $cols = 5;
+        $rows = 3;
+        $cardHeightPrint = '63mm';
+        $pageHeightPrint = '200mm';
+        $qrSize = 52;
+        $marginPrint = '5mm';
+
+        $logoSize = 'w-5.5 h-5.5 text-[8.5px]';
+        $titleSize = 'text-[9px]';
+        $subTitleSize = 'text-[7px]';
+        $labelSize = 'text-[7px]';
+        $nameSize = 'text-[10.5px]';
+        $infoTextSize = 'text-[9.5px]';
+        $tokenSize = 'text-[9.5px] px-1 py-0.5';
+        $qrBoxSize = 'w-14 h-14 sm:w-15 sm:h-15';
+        $footerSize = 'text-[7px]';
+        $cardPadding = 'p-2';
+        $bodyGap = 'my-1 gap-1';
+    }
+@endphp
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cetak Kartu QR Code Pemilih ({{ $perPage }} Kartu/Lembar - {{ ucfirst($orientation) }}) - {{ $schoolName }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <style>
+        @page {
+            size: A4 {{ $orientation }};
+            margin: {{ $marginPrint }};
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { 
+                background: white !important; 
+                padding: 0 !important; 
+                margin: 0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .a4-page {
+                width: 100% !important;
+                height: {{ $pageHeightPrint }} !important;
+                max-height: {{ $pageHeightPrint }} !important;
+                page-break-after: always;
+                page-break-inside: avoid;
+                margin: 0 auto !important;
+                padding: 0 !important;
+                display: grid !important;
+                grid-template-columns: repeat({{ $cols }}, 1fr) !important;
+                grid-template-rows: repeat({{ $rows }}, 1fr) !important;
+                gap: 2mm !important;
+                box-sizing: border-box !important;
+            }
+            .voter-card {
+                height: {{ $cardHeightPrint }} !important;
+                max-height: {{ $cardHeightPrint }} !important;
+                overflow: hidden !important;
+                border: 1.5px solid #047857 !important;
+                box-sizing: border-box !important;
+            }
+        }
+
+        /* Screen Preview Styles */
+        .a4-page {
+            display: grid;
+            grid-template-columns: repeat(1, 1fr);
+            gap: 1rem;
+        }
+        @media (min-width: 640px) {
+            .a4-page {
+                grid-template-columns: repeat({{ min($cols, 2) }}, 1fr);
+            }
+        }
+        @media (min-width: 1024px) {
+            .a4-page {
+                grid-template-columns: repeat({{ min($cols, 3) }}, 1fr);
+                gap: 0.75rem;
+            }
+        }
+        @media (min-width: 1280px) {
+            .a4-page {
+                grid-template-columns: repeat({{ $cols }}, 1fr);
+                gap: 0.75rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 p-4 md:p-6 min-h-screen font-sans text-slate-800">
+
+    <!-- Top Action & Filter Bar (hidden in print) -->
+    <div class="no-print max-w-7xl mx-auto mb-6 bg-white p-5 rounded-3xl shadow-md border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div>
+            <h1 class="text-lg font-black text-slate-900 leading-tight">Cetak Kartu Pemilih QR Code (A4 {{ ucfirst($orientation) }} - {{ $perPage }} Kartu / Lembar)</h1>
+            <p class="text-xs text-slate-500 font-semibold mt-0.5">
+                Total terdaftar: <strong class="text-emerald-700">{{ count($students) }} siswa</strong> 
+                @if(request('kelas')) | Kelas: <span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md font-bold">{{ request('kelas') }}</span> @endif
+            </p>
+        </div>
+
+        <!-- Filter by Class & Actions -->
+        <div class="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
+            <!-- Filter Form -->
+            <form method="GET" action="{{ route('admin.students.qr-cards') }}" class="flex flex-wrap items-center gap-3">
+                
+                <!-- Layout Dropdown -->
+                <div class="flex items-center space-x-1.5">
+                    <span class="text-xs font-bold text-slate-500">Tampilan:</span>
+                    <select name="per_page" onchange="this.form.submit()" class="py-2 px-3 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-extrabold focus:ring-2 focus:ring-emerald-600 focus:outline-none shadow-sm cursor-pointer">
+                        <option value="10" {{ $perPage == 10 ? 'selected' : '' }}>10 Kartu / Lembar (Portrait 2x5)</option>
+                        <option value="15" {{ $perPage == 15 ? 'selected' : '' }}>15 Kartu / Lembar (Landscape 5x3)</option>
+                        <option value="20" {{ $perPage == 20 ? 'selected' : '' }}>20 Kartu / Lembar (Landscape 5x4)</option>
+                    </select>
+                </div>
+
+                <!-- Kelas Dropdown -->
+                <div class="flex items-center space-x-1.5">
+                    <span class="text-xs font-bold text-slate-500">Kelas:</span>
+                    <select name="kelas" onchange="this.form.submit()" class="py-2 px-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-600 focus:outline-none cursor-pointer">
+                        <option value="">-- Semua Kelas --</option>
+                        @foreach($kelases as $k)
+                            <option value="{{ $k }}" {{ request('kelas') == $k ? 'selected' : '' }}>Kelas {{ $k }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                @if(request()->filled('kelas') || request()->filled('per_page'))
+                    <a href="{{ route('admin.students.qr-cards') }}" class="py-2 px-3 bg-slate-200 text-slate-700 hover:bg-slate-300 rounded-xl text-xs font-bold transition">
+                        Reset
+                    </a>
+                @endif
+            </form>
+
+            <a href="{{ route('admin.students.index') }}" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold transition">
+                &larr; Kembali
+            </a>
+
+            <button onclick="window.print()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold shadow-lg shadow-emerald-600/20 transition flex items-center">
+                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                Cetak / Print Kartu (A4)
+            </button>
+        </div>
+    </div>
+
+    <!-- Cards Sheet (Chunked dynamically per A4 page) -->
+    <div class="max-w-7xl mx-auto space-y-8 print:space-y-0">
+        @forelse($students->chunk($perPage) as $pageIndex => $studentChunk)
+            
+            <div class="a4-page bg-white p-3 md:p-5 rounded-3xl print:rounded-none shadow-lg print:shadow-none border border-slate-200 print:border-0">
+                @foreach($studentChunk as $student)
+                    <div class="voter-card bg-white border-2 border-emerald-700/90 rounded-xl {{ $cardPadding }} flex flex-col justify-between relative overflow-hidden bg-gradient-to-b from-white to-slate-50/50 shadow-sm">
+                        
+                        <!-- Header Card -->
+                        <div class="flex items-center space-x-1.5 pb-0.5 border-b border-slate-200">
+                            <div class="{{ $logoSize }} bg-emerald-800 rounded-md flex items-center justify-center text-white font-black flex-shrink-0 shadow-sm">
+                                IPM
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <h2 class="{{ $titleSize }} font-black text-emerald-900 leading-none truncate">
+                                    {{ $schoolName }}
+                                </h2>
+                                <p class="{{ $subTitleSize }} font-extrabold text-slate-500 uppercase tracking-tight mt-0.5">
+                                    KARTU PEMILIH E-VOTING IPM
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Card Body: Details & QR -->
+                        <div class="{{ $bodyGap }} flex items-center justify-between">
+                            <!-- Student Info -->
+                            <div class="min-w-0 flex-1 space-y-0.5">
+                                <div>
+                                    <span class="{{ $labelSize }} uppercase font-bold text-slate-400 block leading-none">Nama Siswa</span>
+                                    <p class="{{ $nameSize }} font-black text-slate-900 leading-tight truncate mt-0.5">{{ $student->nama }}</p>
+                                </div>
+
+                                <div class="flex space-x-1.5 pt-0.5">
+                                    <div>
+                                        <span class="{{ $labelSize }} uppercase font-bold text-slate-400 block leading-none">NIS</span>
+                                        <p class="{{ $infoTextSize }} font-mono font-extrabold text-emerald-700 leading-tight">{{ $student->nis }}</p>
+                                    </div>
+                                    <div>
+                                        <span class="{{ $labelSize }} uppercase font-bold text-slate-400 block leading-none">Kelas</span>
+                                        <p class="{{ $infoTextSize }} font-extrabold text-slate-800 leading-tight truncate max-w-[50px]">{{ $student->kelas }}</p>
+                                    </div>
+                                </div>
+
+                                <div class="pt-0.5">
+                                    <span class="{{ $labelSize }} uppercase font-bold text-slate-400 block leading-none">Token Login</span>
+                                    <p class="{{ $tokenSize }} font-mono font-black bg-slate-100 text-slate-900 rounded border border-slate-200 inline-block leading-none mt-0.5 tracking-wider">
+                                        {{ $student->plain_token ?? '******' }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- QR Code Container -->
+                            <div class="{{ $qrBoxSize }} bg-white p-0.5 rounded-md border border-slate-200 shadow-inner flex items-center justify-center flex-shrink-0">
+                                <div id="qrcode-{{ $student->id }}" class="flex items-center justify-center"></div>
+                            </div>
+                        </div>
+
+                        <!-- Card Footer -->
+                        <div class="pt-0.5 border-t border-slate-100 flex items-center justify-between {{ $footerSize }} text-slate-400 font-semibold leading-none">
+                            <span>Formatur {{ date('Y') }}</span>
+                            <span class="text-emerald-700 font-bold">Login QR</span>
+                        </div>
+
+                    </div>
+                @endforeach
+            </div>
+
+        @empty
+            <div class="bg-white rounded-3xl p-12 text-center text-slate-400 border border-slate-200">
+                Tidak ada data siswa untuk kelas yang dipilih.
+            </div>
+        @endforelse
+    </div>
+
+    <!-- Script to Generate QR Codes client side -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            @foreach($students as $student)
+                (function() {
+                    const payload = JSON.stringify({
+                        nis: "{{ $student->nis }}",
+                        token: "{{ $student->plain_token ?? '' }}"
+                    });
+
+                    const container = document.getElementById("qrcode-{{ $student->id }}");
+                    if (container && typeof QRCode !== 'undefined') {
+                        new QRCode(container, {
+                            text: payload,
+                            width: {{ $qrSize }},
+                            height: {{ $qrSize }},
+                            colorDark : "#064e3b",
+                            colorLight : "#ffffff",
+                            correctLevel : QRCode.CorrectLevel.M
+                        });
+                    }
+                })();
+            @endforeach
+        });
+    </script>
+</body>
+</html>
