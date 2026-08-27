@@ -375,94 +375,140 @@ class StudentManagementController extends Controller
 
     public function importExcel(Request $request)
     {
-        $request->validate([
-            'file' => 'required|file|mimes:xlsx,xls,csv|max:5120',
-            'mode' => 'required|in:append,update',
-        ], [
-            'file.required' => 'File wajib dipilih.',
-            'file.mimes'    => 'Format file harus .xlsx, .xls, atau .csv.',
-            'file.max'      => 'Ukuran file maksimal 5MB.',
-        ]);
-
-        $mode = $request->input('mode', 'append');
-        $file = $request->file('file');
+        @ini_set('memory_limit', '256M');
+        @set_time_limit(120);
 
         try {
-            $spreadsheet = IOFactory::load($file->getRealPath());
-            $sheet       = $spreadsheet->getActiveSheet();
-            $rows        = $sheet->toArray(null, true, true, true);
-        } catch (\Exception $e) {
-            return back()->with('error', 'Gagal membaca file Excel: ' . $e->getMessage());
-        }
+            $request->validate([
+                'file' => 'required|file|max:10240',
+                'mode' => 'required|in:append,update',
+            ], [
+                'file.required' => 'File wajib dipilih.',
+                'file.max'      => 'Ukuran file maksimal 10MB.',
+            ]);
 
-        $imported = 0;
-        $updated  = 0;
-        $skipped  = 0;
-        $errors   = [];
+            $file = $request->file('file');
+            $extension = strtolower($file->getClientOriginalExtension());
 
-        // Lewati baris pertama (header)
-        $firstRow = true;
-
-        foreach ($rows as $rowIndex => $row) {
-            if ($firstRow) {
-                $firstRow = false;
-                continue;
+            if (!in_array($extension, ['xlsx', 'xls', 'csv'])) {
+                return back()->with('error', 'Format file tidak didukung. Harap upload file .xlsx, .xls, atau .csv.');
             }
 
-            $nis   = trim((string) ($row['A'] ?? ''));
-            $nama  = trim((string) ($row['B'] ?? ''));
-            $kelas = trim((string) ($row['C'] ?? ''));
+            $mode = $request->input('mode', 'append');
+            $rows = [];
 
-            // Lewati baris kosong
-            if (empty($nis) && empty($nama)) {
-                continue;
-            }
-
-            // Validasi kolom wajib
-            if (empty($nis) || empty($nama) || empty($kelas)) {
-                $errors[] = "Baris {$rowIndex}: NIS/Nama/Kelas tidak boleh kosong.";
-                $skipped++;
-                continue;
-            }
-
-            $existing = Student::where('nis', $nis)->first();
-
-            if ($existing) {
-                if ($mode === 'update') {
-                    $existing->update([
-                        'nama'  => $nama,
-                        'kelas' => $kelas,
-                    ]);
-                    $updated++;
-                } else {
-                    // append mode: lewati duplikat
-                    $skipped++;
+            // 1. Coba baca dengan PhpSpreadsheet jika kelas/ekstensi tersedia
+            try {
+                if (class_exists('PhpOffice\PhpSpreadsheet\IOFactory')) {
+                    $spreadsheet = IOFactory::load($file->getRealPath());
+                    $sheet       = $spreadsheet->getActiveSheet();
+                    $rows        = $sheet->toArray(null, true, true, true);
                 }
-            } else {
-                $plainToken = strtoupper(Str::random(8));
-                Student::create([
-                    'nis'         => $nis,
-                    'nama'        => $nama,
-                    'kelas'       => $kelas,
-                    'token'       => Hash::make($plainToken),
-                    'plain_token' => $plainToken,
-                    'status'      => 'active',
-                    'has_voted'   => false,
-                ]);
-                $imported++;
+            } catch (\Throwable $e) {
+                // Fallback jika file CSV dan PhpSpreadsheet gagal (misal ZipArchive tidak terinstall)
+                if ($extension === 'csv') {
+                    $rows = $this->parseCsvFile($file->getRealPath());
+                } else {
+                    return back()->with('error', 'Gagal membaca file Excel (' . $e->getMessage() . '). Pastikan ekstensi php-zip aktif di server atau gunakan format .csv.');
+                }
             }
+
+            if (empty($rows)) {
+                return back()->with('error', 'File Excel/CSV kosong atau tidak dapat dibaca.');
+            }
+
+            $imported = 0;
+            $updated  = 0;
+            $skipped  = 0;
+            $errors   = [];
+            $firstRow = true;
+
+            foreach ($rows as $rowIndex => $row) {
+                if ($firstRow) {
+                    $firstRow = false;
+                    continue;
+                }
+
+                // Normalisasi array dari PhpSpreadsheet (key A, B, C) atau array numerik (0, 1, 2)
+                $nis   = trim((string) ($row['A'] ?? $row[0] ?? ''));
+                $nama  = trim((string) ($row['B'] ?? $row[1] ?? ''));
+                $kelas = trim((string) ($row['C'] ?? $row[2] ?? ''));
+
+                // Lewati baris kosong
+                if (empty($nis) && empty($nama)) {
+                    continue;
+                }
+
+                // Validasi kolom wajib
+                if (empty($nis) || empty($nama) || empty($kelas)) {
+                    $errors[] = "Baris {$rowIndex}: NIS/Nama/Kelas tidak boleh kosong.";
+                    $skipped++;
+                    continue;
+                }
+
+                $existing = Student::where('nis', $nis)->first();
+
+                if ($existing) {
+                    if ($mode === 'update') {
+                        $existing->update([
+                            'nama'  => $nama,
+                            'kelas' => $kelas,
+                        ]);
+                        $updated++;
+                    } else {
+                        $skipped++;
+                    }
+                } else {
+                    $plainToken = strtoupper(Str::random(8));
+                    Student::create([
+                        'nis'         => $nis,
+                        'nama'        => $nama,
+                        'kelas'       => $kelas,
+                        'token'       => Hash::make($plainToken),
+                        'plain_token' => $plainToken,
+                        'status'      => 'active',
+                        'has_voted'   => false,
+                    ]);
+                    $imported++;
+                }
+            }
+
+            AuditLogService::log(
+                'IMPORT_STUDENTS',
+                "Import file siswa — Mode: {$mode} | Ditambahkan: {$imported} | Diperbarui: {$updated} | Dilewati: {$skipped}"
+            );
+
+            $message = "Import selesai! Ditambahkan: {$imported} siswa";
+            if ($updated > 0) $message .= ", Diperbarui: {$updated}";
+            if ($skipped > 0) $message .= ", Dilewati: {$skipped}";
+            if (!empty($errors)) $message .= '. Error: ' . implode('; ', array_slice($errors, 0, 3));
+
+            return back()->with('success', $message);
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Terjadi kesalahan sistem saat mengimport data: ' . $e->getMessage());
         }
+    }
 
-        AuditLogService::log(
-            'IMPORT_STUDENTS',
-            "Import Excel siswa — Mode: {$mode} | Ditambahkan: {$imported} | Diperbarui: {$updated} | Dilewati: {$skipped}"
-        );
-
-        $message = "Import selesai! Ditambahkan: {$imported} siswa";
-        if ($updated > 0) $message .= ", Diperbarui: {$updated}";
-        if ($skipped > 0) $message .= ", Dilewati: {$skipped}";
-        if (!empty($errors)) $message .= '. Error: ' . implode('; ', array_slice($errors, 0, 3));
-
-        return back()->with('success', $message);
+    /**
+     * Helper fallback baca file CSV secara native tanpa butuh ZipArchive
+     */
+    private function parseCsvFile(string $filePath): array
+    {
+        $rows = [];
+        if (($handle = fopen($filePath, 'r')) !== false) {
+            while (($data = fgetcsv($handle, 1000, ',')) !== false) {
+                if (count($data) === 1 && str_contains($data[0], ';')) {
+                    // Coba pisah dengan titik koma jika format CSV Indonesia (semicolon)
+                    $data = explode(';', $data[0]);
+                }
+                $rows[] = [
+                    'A' => $data[0] ?? '',
+                    'B' => $data[1] ?? '',
+                    'C' => $data[2] ?? '',
+                ];
+            }
+            fclose($handle);
+        }
+        return $rows;
     }
 }
