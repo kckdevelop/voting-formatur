@@ -124,6 +124,7 @@
 
             <div x-show="qrModalOpen" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" class="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
                 
+                <!-- Header -->
                 <div class="bg-gradient-to-r from-emerald-800 to-emerald-900 px-6 py-4 flex items-center justify-between text-white">
                     <div class="flex items-center space-x-2">
                         <svg class="w-5 h-5 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg>
@@ -135,48 +136,41 @@
                 </div>
 
                 <div class="p-6">
-                    <p class="text-xs text-slate-500 mb-3 text-center">
-                        Arahkan kamera ke QR Code yang tertera pada kartu pemilih Anda.
-                    </p>
 
-                    <!-- HTTPS Warning Banner -->
-                    <template x-if="isHttp">
-                        <div class="mb-4 p-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl text-[11px] font-semibold flex items-start space-x-2">
-                            <svg class="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                            <span>
-                                <strong>Info Akses Kamera HP:</strong> Browser HP membutuhkan koneksi aman (<strong>HTTPS://</strong>) untuk membuka kamera live. Jika menggunakan HTTP, silakan gunakan tombol <strong>"Upload / Ambil Foto QR Code"</strong> di bawah.
-                            </span>
-                        </div>
-                    </template>
+                    <!-- ===== PRIMARY ACTION: Native Camera / Galeri (Always works, bypasses Permissions-Policy) ===== -->
+                    <div class="mb-5">
+                        <p class="text-xs font-bold text-slate-700 mb-2 text-center">Pilih cara scan QR Code kartu pemilih:</p>
 
-                    <!-- Scanner Video Container -->
-                    <div id="reader" class="w-full bg-slate-100 rounded-2xl overflow-hidden min-h-[240px] border border-slate-200"></div>
-
-                    <!-- Status Message & Retry Action -->
-                    <div x-show="qrMessage" class="mt-4 p-3.5 rounded-2xl text-xs font-semibold text-center leading-relaxed" :class="qrSuccess ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'">
-                        <p x-text="qrMessage" style="white-space: pre-line;"></p>
-                        <template x-if="!qrSuccess && !isHttp">
-                            <button type="button" @click="initScanner()" class="mt-2.5 px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold rounded-xl shadow-sm transition inline-flex items-center">
-                                <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                                Coba Lagi
-                            </button>
-                        </template>
+                        <!-- Primary: Ambil Foto via Kamera Native -->
+                        <label for="qr-file-input"
+                            class="w-full py-4 px-4 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-bold rounded-2xl cursor-pointer flex items-center justify-center transition shadow-md shadow-emerald-200 mb-2">
+                            <svg class="w-5 h-5 mr-2 flex-shrink-0 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            📷 Ambil Foto / Upload QR Code
+                        </label>
+                        <!-- input capture=environment → langsung buka kamera native HP, tidak butuh getUserMedia -->
+                        <input id="qr-file-input" type="file" accept="image/*" capture="environment" class="hidden" @change="handleFileUpload($event)">
+                        <p class="text-[10px] text-slate-400 text-center">Ketuk tombol hijau → arahkan kamera HP ke QR Code → foto → selesai</p>
                     </div>
 
-                    <!-- Alternative Fallback: File / Photo Upload -->
-                    <!-- When camera fails, make this button primary/green so user knows it's the main alternative -->
-                    <div class="mt-4 pt-4 border-t border-slate-100 flex flex-col items-center">
-                        <label for="qr-file-input"
-                            :class="cameraFailed
-                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-md shadow-emerald-200'
-                                : 'bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 text-slate-700 border-slate-200'"
-                            class="w-full py-3 px-4 text-xs font-bold rounded-xl cursor-pointer flex items-center justify-center transition shadow-sm border">
-                            <svg class="w-4 h-4 mr-2 flex-shrink-0" :class="cameraFailed ? 'text-white' : 'text-emerald-600'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                            <span x-text="cameraFailed ? '📷 Gunakan Ini: Upload / Ambil Foto QR Code' : 'Upload / Ambil Foto QR Code'"></span>
-                        </label>
-                        <input id="qr-file-input" type="file" accept="image/*" capture="environment" class="hidden" @change="handleFileUpload($event)">
-                        <p class="text-[10px] text-slate-400 mt-1.5 text-center"
-                           x-text="cameraFailed ? 'Ketuk tombol hijau di atas → pilih foto QR Code dari galeri atau ambil foto baru' : 'Gunakan ini jika kamera live tidak muncul atau terblokir di HP'"></p>
+                    <!-- Divider -->
+                    <div class="relative my-4">
+                        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-200"></div></div>
+                        <div class="relative flex justify-center"><span class="bg-white px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">atau gunakan live scanner (jika tersedia)</span></div>
+                    </div>
+
+                    <!-- ===== SECONDARY: Live Camera Scanner ===== -->
+                    <!-- Scanner Video Container -->
+                    <div id="reader" class="w-full bg-slate-100 rounded-2xl overflow-hidden border border-slate-200" style="min-height: 200px;"></div>
+
+                    <!-- Status Message & Retry Action -->
+                    <div x-show="qrMessage" class="mt-3 p-3 rounded-2xl text-xs font-semibold text-center leading-relaxed" :class="qrSuccess ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-amber-50 text-amber-800 border border-amber-200'">
+                        <p x-text="qrMessage" style="white-space: pre-line;"></p>
+                        <template x-if="!qrSuccess && !isHttp">
+                            <button type="button" @click="initScanner()" class="mt-2 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold rounded-xl shadow-sm transition inline-flex items-center">
+                                <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                Coba Live Scanner Lagi
+                            </button>
+                        </template>
                     </div>
                 </div>
 
