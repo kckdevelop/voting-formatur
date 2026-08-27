@@ -142,142 +142,15 @@ class CandidateManagementController extends Controller
 
     public function downloadImportTemplate()
     {
-        if (class_exists('ZipArchive')) {
-            try {
-                $spreadsheet = new Spreadsheet();
-
-                // ── Sheet 1: Template Data ──────────────────────────────────────────
-                $sheet = $spreadsheet->getActiveSheet();
-                $sheet->setTitle('Data Calon Formatur');
-
-                $headerStyle = [
-                    'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 11],
-                    'fill'      => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                                    'startColor' => ['rgb' => '065F46']],
-                    'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
-                                    'vertical'   => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER],
-                    'borders'   => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                                                     'color'       => ['rgb' => '047857']]],
-                ];
-
-                $dataStyle = [
-                    'font'      => ['size' => 10],
-                    'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_LEFT,
-                                    'vertical'   => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER],
-                    'borders'   => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                                                     'color'       => ['rgb' => 'CBD5E1']]],
-                ];
-
-                $noteStyle = [
-                    'font' => ['italic' => true, 'color' => ['rgb' => '64748B'], 'size' => 9],
-                    'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                               'startColor' => ['rgb' => 'F0FDF4']],
-                ];
-
-                // Judul
-                $sheet->mergeCells('A1:F1');
-                $sheet->setCellValue('A1', 'TEMPLATE IMPORT CALON FORMATUR — E-Voting Formatur IPM');
-                $sheet->getStyle('A1')->applyFromArray([
-                    'font'      => ['bold' => true, 'size' => 12, 'color' => ['rgb' => '065F46']],
-                    'fill'      => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                                    'startColor' => ['rgb' => 'D1FAE5']],
-                    'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
-                                    'vertical'   => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER],
-                ]);
-                $sheet->getRowDimension(1)->setRowHeight(28);
-
-                // Catatan
-                $sheet->mergeCells('A2:F2');
-                $sheet->setCellValue('A2', '⚠ Baris 1 = Judul. Baris 2 = Catatan. Baris 3 = HEADER. Data mulai baris 4. Jangan ubah urutan kolom!');
-                $sheet->getStyle('A2')->applyFromArray($noteStyle);
-                $sheet->getRowDimension(2)->setRowHeight(16);
-
-                // Header kolom (baris 3)
-                $sheet->setCellValue('A3', 'NOMOR URUT');
-                $sheet->setCellValue('B3', 'NAMA LENGKAP');
-                $sheet->setCellValue('C3', 'KELAS');
-                $sheet->setCellValue('D3', 'NIS (OPSIONAL)');
-                $sheet->setCellValue('E3', 'VISI');
-                $sheet->setCellValue('F3', 'MISI');
-                $sheet->getStyle('A3:F3')->applyFromArray($headerStyle);
-                $sheet->getRowDimension(3)->setRowHeight(22);
-
-                // Contoh data (baris 4–6)
-                $contohData = [
-                    ['1', 'Ahmad Fauzan', 'XI TKJ 1', '2024001', 'Mewujudkan IPM yang aktif dan inovatif.', '1. Mengadakan pelatihan leadership.\n2. Menguatkan ukhuwah.'],
-                    ['2', 'Budi Santoso', 'XI TKJ 2', '2024002', 'Menjadikan kader IPM berakhlak mulia.', '1. Pembiasaan ibadah bersama.\n2. Mengembangkan minat bakat.'],
-                    ['3', 'Citra Dewi',   'XI AKL 1', '2024003', 'IPM Unggul dalam prestasi dan kreasi.', '1. Workshop digital kreatif.\n2. Bakti sosial sekolah.'],
-                ];
-
-                $altStyle = [
-                    'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                               'startColor' => ['rgb' => 'F8FAFC']],
-                ];
-
-                foreach ($contohData as $i => $row) {
-                    $rowNum = $i + 4;
-                    $sheet->setCellValue("A{$rowNum}", $row[0]);
-                    $sheet->setCellValue("B{$rowNum}", $row[1]);
-                    $sheet->setCellValue("C{$rowNum}", $row[2]);
-                    $sheet->setCellValue("D{$rowNum}", $row[3]);
-                    $sheet->setCellValue("E{$rowNum}", $row[4]);
-                    $sheet->setCellValue("F{$rowNum}", $row[5]);
-                    $sheet->getStyle("A{$rowNum}:F{$rowNum}")->applyFromArray($dataStyle);
-                    if ($i % 2 === 0) {
-                        $sheet->getStyle("A{$rowNum}:F{$rowNum}")->applyFromArray($altStyle);
-                    }
-                    $sheet->getRowDimension($rowNum)->setRowHeight(22);
-                }
-
-                // Placeholder baris kosong tambahan (baris 7–30)
-                for ($r = 7; $r <= 30; $r++) {
-                    $sheet->getStyle("A{$r}:F{$r}")->applyFromArray($dataStyle);
-                    $sheet->getRowDimension($r)->setRowHeight(18);
-                }
-
-                // Lebar kolom
-                $sheet->getColumnDimension('A')->setWidth(15);  // No Urut
-                $sheet->getColumnDimension('B')->setWidth(30);  // Nama
-                $sheet->getColumnDimension('C')->setWidth(18);  // Kelas
-                $sheet->getColumnDimension('D')->setWidth(18);  // NIS
-                $sheet->getColumnDimension('E')->setWidth(35);  // Visi
-                $sheet->getColumnDimension('F')->setWidth(40);  // Misi
-
-                // Freeze pane
-                $sheet->freezePane('A4');
-
-                $writer   = new Xlsx($spreadsheet);
-                $filename = 'template_import_kandidat_ipm.xlsx';
-
-                return response()->streamDownload(function () use ($writer) {
-                    $writer->save('php://output');
-                }, $filename, [
-                    'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                    'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-                    'Cache-Control'       => 'max-age=0',
-                ]);
-            } catch (\Throwable $e) {
-                // Fallback ke CSV jika terjadi error saat simpan Xlsx
-            }
+        $filePath = public_path('templates/template_import_kandidat_ipm.xlsx');
+        
+        if (file_exists($filePath)) {
+            return response()->download($filePath, 'template_import_kandidat_ipm.xlsx', [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ]);
         }
 
-        // Fallback CSV jika ZipArchive tidak terinstall di server
-        $filename = 'template_import_kandidat_ipm.csv';
-        $headers = [
-            'Content-Type'        => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-            'Cache-Control'       => 'max-age=0',
-        ];
-
-        return response()->streamDownload(function () {
-            $out = fopen('php://output', 'w');
-            fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM
-            fputcsv($out, ['NOMOR URUT', 'NAMA LENGKAP', 'KELAS', 'NIS (OPSIONAL)', 'VISI', 'MISI']);
-            fputcsv($out, ['1', 'Ahmad Fauzan', 'XI TKJ 1', '2024001', 'Mewujudkan IPM yang aktif dan inovatif.', '1. Mengadakan pelatihan leadership. 2. Menguatkan ukhuwah.']);
-            fputcsv($out, ['2', 'Budi Santoso', 'XI TKJ 2', '2024002', 'Menjadikan kader IPM berakhlak mulia.', '1. Pembiasaan ibadah bersama. 2. Mengembangkan minat bakat.']);
-            fputcsv($out, ['3', 'Citra Dewi', 'XI AKL 1', '2024003', 'IPM Unggul dalam prestasi dan kreasi.', '1. Workshop digital kreatif. 2. Bakti sosial sekolah.']);
-            fclose($out);
-        }, $filename, $headers);
+        return back()->with('error', 'File template Excel (.xlsx) tidak ditemukan.');
     }
 
     public function importExcel(Request $request)

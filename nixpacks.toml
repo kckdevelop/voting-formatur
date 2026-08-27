@@ -1,0 +1,6 @@
+# Nixpacks configuration for Coolify deployment
+[variables]
+NIXPACKS_PHP_EXTENSIONS = "zip, gd, pdo_mysql, bcmath, mbstring, ctype, dom, fileinfo, filter, hash, iconv, json, libxml, openssl, pdo, session, tokenizer, xml"
+
+[phases.setup]
+nixPkgs = ["...", "php82Extensions.zip", "php82Extensions.gd"]
