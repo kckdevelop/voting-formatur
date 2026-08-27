@@ -4,6 +4,7 @@
 <div class="space-y-6" x-data="{
     addModalOpen: false,
     editModalOpen: false,
+    importModalOpen: false,
     activeCandidate: null,
     selectedIds: [],
     toggleOne(id) {
@@ -32,10 +33,17 @@
             <p class="text-xs text-slate-500">Total calon terdaftar: {{ count($candidates) }} siswa | Total suara masuk: {{ $totalVotes }} suara</p>
         </div>
 
-        <button type="button" @click="addModalOpen = true" class="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-2xl shadow-md transition flex items-center justify-center">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-            Tambah Calon Formatur
-        </button>
+        <div class="flex items-center gap-3 w-full sm:w-auto">
+            <button type="button" @click="importModalOpen = true" class="px-4 py-2.5 bg-green-50 hover:bg-green-100 text-green-800 border border-green-200 text-xs font-bold rounded-2xl transition flex items-center justify-center">
+                <svg class="w-4 h-4 mr-1.5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4 4l4-4m0 0l4-4m-4 4V4"></path></svg>
+                Import Excel
+            </button>
+
+            <button type="button" @click="addModalOpen = true" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-2xl shadow-md transition flex items-center justify-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                Tambah Calon Formatur
+            </button>
+        </div>
     </div>
 
     <!-- Bulk Delete Toolbar (muncul ketika ada yang dipilih) -->
@@ -251,6 +259,113 @@
                     <div class="flex justify-end space-x-3 pt-2">
                         <button type="button" @click="editModalOpen = false" class="px-4 py-2 bg-slate-200 text-slate-800 text-xs font-bold rounded-xl">Batal</button>
                         <button type="submit" class="px-5 py-2 bg-emerald-600 text-white text-xs font-extrabold rounded-xl hover:bg-emerald-700">Simpan Perubahan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Excel Modal -->
+    <div x-show="importModalOpen" x-cloak class="fixed inset-0 z-50 overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm" @click="importModalOpen = false"></div>
+
+            <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl z-10 space-y-5">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-green-100 rounded-2xl flex items-center justify-center flex-shrink-0">
+                        <svg class="w-5 h-5 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-extrabold text-slate-900">Import Calon Formatur</h3>
+                        <p class="text-xs text-slate-500">Upload file Excel (.xlsx / .xls / .csv)</p>
+                    </div>
+                </div>
+
+                {{-- Format Info --}}
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
+                    <p class="text-xs font-extrabold text-slate-700 uppercase tracking-wide">Format Kolom Excel (Baris 3 = Header)</p>
+                    <div class="grid grid-cols-3 gap-2 text-left">
+                        <div class="bg-white border border-slate-200 rounded-xl px-2.5 py-2">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase">Kolom A</p>
+                            <p class="text-xs font-black text-slate-800">No Urut</p>
+                        </div>
+                        <div class="bg-white border border-slate-200 rounded-xl px-2.5 py-2">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase">Kolom B</p>
+                            <p class="text-xs font-black text-slate-800">Nama</p>
+                        </div>
+                        <div class="bg-white border border-slate-200 rounded-xl px-2.5 py-2">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase">Kolom C</p>
+                            <p class="text-xs font-black text-slate-800">Kelas</p>
+                        </div>
+                        <div class="bg-white border border-slate-200 rounded-xl px-2.5 py-2">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase">Kolom D</p>
+                            <p class="text-xs font-black text-slate-800">NIS (Opt)</p>
+                        </div>
+                        <div class="bg-white border border-slate-200 rounded-xl px-2.5 py-2">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase">Kolom E</p>
+                            <p class="text-xs font-black text-slate-800">Visi (Opt)</p>
+                        </div>
+                        <div class="bg-white border border-slate-200 rounded-xl px-2.5 py-2">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase">Kolom F</p>
+                            <p class="text-xs font-black text-slate-800">Misi (Opt)</p>
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1">Gunakan template yang telah disediakan di bawah agar data sesuai.</p>
+
+                    {{-- Download Template Button --}}
+                    <a href="{{ route('admin.candidates.import.template') }}"
+                        class="mt-2 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl transition shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        Download Template Excel Calon (.xlsx)
+                    </a>
+                </div>
+
+                <form action="{{ route('admin.candidates.import') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
+                    @csrf
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-700 mb-1">File Excel / CSV</label>
+                        <input type="file" name="file" accept=".xlsx,.xls,.csv" required
+                            class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-green-100 file:text-green-700 hover:file:bg-green-200">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-700 mb-2">Mode Import</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <label class="flex items-start gap-2 p-3 border border-slate-200 rounded-xl cursor-pointer hover:border-green-400 hover:bg-green-50 transition">
+                                <input type="radio" name="mode" value="append" checked class="mt-0.5 accent-green-600">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-800">Tambahkan</p>
+                                    <p class="text-[10px] text-slate-500">Calon baru ditambahkan, calon duplikat dilewati</p>
+                                </div>
+                            </label>
+                            <label class="flex items-start gap-2 p-3 border border-slate-200 rounded-xl cursor-pointer hover:border-amber-400 hover:bg-amber-50 transition">
+                                <input type="radio" name="mode" value="update" class="mt-0.5 accent-amber-500">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-800">Update</p>
+                                    <p class="text-[10px] text-slate-500">Calon duplikat akan diupdate data visi, misi & kelasnya</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end space-x-3 pt-2">
+                        <button type="button" @click="importModalOpen = false"
+                            class="px-4 py-2 bg-slate-200 text-slate-800 text-xs font-bold rounded-xl">
+                            Batal
+                        </button>
+                        <button type="submit"
+                            class="px-5 py-2 bg-green-600 text-white text-xs font-extrabold rounded-xl hover:bg-green-700 flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4 4l4-4m0 0l4-4m-4 4V4"/>
+                            </svg>
+                            Proses Import
+                        </button>
                     </div>
                 </form>
             </div>

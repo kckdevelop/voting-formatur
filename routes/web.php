@@ -57,6 +57,8 @@ Route::prefix('admin')->group(function () {
         // Candidate Management
         Route::get('/candidates', [CandidateManagementController::class, 'index'])->name('admin.candidates.index');
         Route::post('/candidates', [CandidateManagementController::class, 'store'])->name('admin.candidates.store');
+        Route::post('/candidates/import', [CandidateManagementController::class, 'importExcel'])->name('admin.candidates.import');
+        Route::get('/candidates/import/template', [CandidateManagementController::class, 'downloadImportTemplate'])->name('admin.candidates.import.template');
         Route::delete('/candidates/bulk-delete', [CandidateManagementController::class, 'bulkDelete'])->name('admin.candidates.bulk-delete');
         Route::put('/candidates/{candidate}', [CandidateManagementController::class, 'update'])->name('admin.candidates.update');
         Route::delete('/candidates/{candidate}', [CandidateManagementController::class, 'destroy'])->name('admin.candidates.destroy');
