@@ -12,35 +12,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('votes', function (Blueprint $table) {
-            // Hapus foreign key & unique constraint lama
-            $table->dropForeign(['student_id']);
-            $table->dropUnique('votes_student_id_unique');
-
-            // Buat ulang student_id sebagai nullable tanpa unique
-            $table->unsignedBigInteger('student_id')->nullable()->change();
-
-            // Tambahkan kembali foreign key tanpa unique
-            $table->foreign('student_id')
-                  ->references('id')
-                  ->on('students')
-                  ->onDelete('set null');
-        });
+        // Handled directly during votes table creation
     }
 
     public function down(): void
     {
-        Schema::table('votes', function (Blueprint $table) {
-            $table->dropForeign(['student_id']);
-
-            $table->unsignedBigInteger('student_id')->nullable(false)->change();
-
-            $table->foreign('student_id')
-                  ->references('id')
-                  ->on('students')
-                  ->onDelete('cascade');
-
-            $table->unique('student_id');
-        });
+        //
     }
 };
