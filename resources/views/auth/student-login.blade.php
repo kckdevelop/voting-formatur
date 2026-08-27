@@ -239,64 +239,69 @@ function studentLoginHandler() {
 
         startCameraStream() {
             const self = this;
-            const html5QrCode = new Html5Qrcode("reader");
-            self.qrScanner = html5QrCode;
-            const config = { fps: 10, qrbox: { width: 220, height: 220 } };
 
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 self.handleCameraError("Browser HP Anda tidak mendukung streaming kamera live (API MediaDevices tidak tersedia atau situs diakses via HTTP).");
                 return;
             }
 
-            // Step 1: Explicitly request native browser camera permission
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } } })
-                .catch(() => navigator.mediaDevices.getUserMedia({ video: true }))
-                .then((stream) => {
-                    if (stream) {
-                        stream.getTracks().forEach(track => track.stop());
+            const html5QrCode = new Html5Qrcode("reader");
+            self.qrScanner = html5QrCode;
+
+            const qrboxFunction = function(viewfinderWidth, viewfinderHeight) {
+                const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                const size = Math.floor(minEdge * 0.75);
+                return { width: Math.max(size, 180), height: Math.max(size, 180) };
+            };
+
+            const config = { 
+                fps: 10, 
+                qrbox: qrboxFunction,
+                aspectRatio: 1.0
+            };
+
+            // Direct start using facingMode environment (back camera)
+            html5QrCode.start(
+                { facingMode: "environment" },
+                config,
+                (decodedText) => self.processQrPayload(decodedText),
+                () => {}
+            )
+            .then(() => {
+                self.qrMessage = 'Kamera aktif! Arahkan kamera ke QR Code.';
+                self.qrSuccess = true;
+            })
+            .catch((err) => {
+                console.warn("Direct facingMode environment failed, trying getCameras fallback...", err);
+                
+                return Html5Qrcode.getCameras().then(devices => {
+                    if (devices && devices.length > 0) {
+                        const backCamera = devices.find(d => 
+                            d.label.toLowerCase().includes('back') || 
+                            d.label.toLowerCase().includes('rear') || 
+                            d.label.toLowerCase().includes('belakang') ||
+                            d.label.toLowerCase().includes('environment') ||
+                            d.label.toLowerCase().includes('0')
+                        ) || devices[devices.length - 1];
+
+                        return html5QrCode.start(
+                            backCamera.id,
+                            config,
+                            (decodedText) => self.processQrPayload(decodedText),
+                            () => {}
+                        ).then(() => {
+                            self.qrMessage = 'Kamera aktif! Arahkan kamera ke QR Code.';
+                            self.qrSuccess = true;
+                        });
+                    } else {
+                        throw err;
                     }
-
-                    // Step 2: Start Html5Qrcode scanner with environment camera
-                    return html5QrCode.start(
-                        { facingMode: "environment" },
-                        config,
-                        (decodedText) => self.processQrPayload(decodedText),
-                        () => {}
-                    );
-                })
-                .then(() => {
-                    self.qrMessage = 'Kamera aktif! Arahkan kamera ke QR Code.';
-                    self.qrSuccess = true;
-                })
-                .catch((err) => {
-                    console.warn("Direct facingMode failed, trying getCameras fallback...", err);
-                    
-                    return Html5Qrcode.getCameras().then(devices => {
-                        if (devices && devices.length > 0) {
-                            const backCamera = devices.find(d => 
-                                d.label.toLowerCase().includes('back') || 
-                                d.label.toLowerCase().includes('rear') || 
-                                d.label.toLowerCase().includes('lingkungan') ||
-                                d.label.toLowerCase().includes('0')
-                            ) || devices[devices.length - 1];
-
-                            return html5QrCode.start(
-                                backCamera.id,
-                                config,
-                                (decodedText) => self.processQrPayload(decodedText),
-                                () => {}
-                            ).then(() => {
-                                self.qrMessage = 'Kamera aktif! Arahkan kamera ke QR Code.';
-                                self.qrSuccess = true;
-                            });
-                        } else {
-                            throw err;
-                        }
-                    });
-                })
-                .catch((err) => {
-                    self.handleCameraError(err);
                 });
+            })
+            .catch((err) => {
+                console.error("Camera start failed completely:", err);
+                self.handleCameraError(err);
+            });
         },
 
         handleCameraError(err) {
@@ -318,18 +323,35 @@ function studentLoginHandler() {
             self.qrMessage = 'Membaca gambar QR Code...';
             self.qrSuccess = true;
 
-            if (!self.qrScanner) {
-                self.qrScanner = new Html5Qrcode("reader");
-            }
+            const processFile = () => {
+                const fileScanner = new Html5Qrcode("reader");
+                fileScanner.scanFile(file, true)
+                    .then(decodedText => {
+                        self.processQrPayload(decodedText);
+                    })
+                    .catch(err => {
+                        self.qrMessage = 'QR Code tidak terdeteksi dari foto. Pastikan foto QR Code jelas, fokus, dan terang.';
+                        self.qrSuccess = false;
+                    });
+            };
 
-            self.qrScanner.scanFile(file, true)
-                .then(decodedText => {
-                    self.processQrPayload(decodedText);
-                })
-                .catch(err => {
-                    self.qrMessage = 'QR Code tidak terdeteksi dari foto. Pastikan foto QR Code jelas, fokus, dan tidak buram.';
-                    self.qrSuccess = false;
-                });
+            if (self.qrScanner) {
+                try {
+                    self.qrScanner.stop().then(() => {
+                        self.qrScanner.clear();
+                        self.qrScanner = null;
+                        processFile();
+                    }).catch(() => {
+                        self.qrScanner = null;
+                        processFile();
+                    });
+                } catch(e) {
+                    self.qrScanner = null;
+                    processFile();
+                }
+            } else {
+                processFile();
+            }
         },
 
         processQrPayload(rawPayload) {

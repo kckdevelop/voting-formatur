@@ -8,6 +8,7 @@ use App\Models\Setting;
 use App\Models\Student;
 use App\Models\Vote;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
@@ -307,5 +308,33 @@ class VotingSystemTest extends TestCase
         $this->assertEquals(2, Student::count());
         $this->assertDatabaseHas('students', ['nis' => '9001', 'nama' => 'Nama Baru Updated', 'kelas' => 'XI TKJ 1']);
         $this->assertDatabaseHas('students', ['nis' => '9003', 'nama' => 'Siswa Baru 3']);
+    }
+
+    public function test_student_can_login_via_qr_json_and_plain_text()
+    {
+        $student = Student::create([
+            'nis' => '88801',
+            'nama' => 'QR Tester',
+            'kelas' => 'XII TKJ 1',
+            'token' => Hash::make('QRTOKEN1'),
+            'plain_token' => 'QRTOKEN1',
+            'status' => 'active',
+        ]);
+
+        // Test JSON payload QR
+        $resJson = $this->postJson(route('student.login.qr'), [
+            'qr_payload' => json_encode(['nis' => '88801', 'token' => 'QRTOKEN1']),
+        ]);
+        $resJson->assertStatus(200)
+            ->assertJson(['success' => true]);
+
+        Auth::guard('student')->logout();
+
+        // Test Plain Text payload QR (NIS:TOKEN)
+        $resText = $this->postJson(route('student.login.qr'), [
+            'qr_payload' => '88801:QRTOKEN1',
+        ]);
+        $resText->assertStatus(200)
+            ->assertJson(['success' => true]);
     }
 }

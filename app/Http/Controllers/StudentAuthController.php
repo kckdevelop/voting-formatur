@@ -106,18 +106,30 @@ class StudentAuthController extends Controller
             'qr_payload' => 'required|string',
         ]);
 
-        $payloadRaw = $request->input('qr_payload');
+        $payloadRaw = trim($request->input('qr_payload'));
         $data = json_decode($payloadRaw, true);
 
-        if (!$data || !isset($data['nis']) || !isset($data['token'])) {
+        $nis = null;
+        $token = null;
+
+        if (is_array($data) && isset($data['nis']) && isset($data['token'])) {
+            $nis = trim((string) $data['nis']);
+            $token = trim((string) $data['token']);
+        } else {
+            // Fallback: parse NIS:TOKEN or NIS|TOKEN or NIS,TOKEN
+            $parts = preg_split('/[:|,\s]+/', $payloadRaw);
+            if (count($parts) >= 2) {
+                $nis = trim($parts[0]);
+                $token = trim($parts[1]);
+            }
+        }
+
+        if (empty($nis) || empty($token)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Format QR Code tidak valid. QR Code harus berisi data NIS dan Token.',
             ], 422);
         }
-
-        $nis = trim($data['nis']);
-        $token = trim($data['token']);
 
         $student = Student::where('nis', $nis)->first();
 
