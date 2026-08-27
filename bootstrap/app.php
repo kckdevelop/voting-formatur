@@ -17,6 +17,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'auth.student' => AuthenticateStudent::class,
             'auth.admin' => AuthenticateAdmin::class,
         ]);
+
+        // Override restrictive Permissions-Policy from hosting server (nginx)
+        // that blocks camera=() — required for QR code scanner on mobile browsers
+        $middleware->web(append: [
+            \App\Http\Middleware\AllowCameraPolicy::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
