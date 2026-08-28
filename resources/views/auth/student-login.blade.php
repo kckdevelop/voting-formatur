@@ -273,7 +273,7 @@ function studentLoginHandler() {
             }
 
             const constraintsOptions = [
-                { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } } },
+                { video: { facingMode: { ideal: "environment" } } },
                 { video: { facingMode: "user" } },
                 { video: true }
             ];
@@ -303,11 +303,12 @@ function studentLoginHandler() {
                         });
                     })
                     .catch(err => {
-                        const errName = (err && err.name) ? err.name : String(err);
-                        if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
-                            self.handleCameraError(err);
-                        } else {
+                        console.warn(`Camera constraint attempt ${index} failed:`, err);
+                        // Try next constraint option (e.g. environment -> user -> video: true)
+                        if (index + 1 < constraintsOptions.length) {
                             tryGetUserMedia(index + 1);
+                        } else {
+                            self.handleCameraError(err);
                         }
                     });
             };
