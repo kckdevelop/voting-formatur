@@ -158,9 +158,23 @@
                         <div class="relative flex justify-center"><span class="bg-white px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">atau gunakan live scanner (jika tersedia)</span></div>
                     </div>
 
-                    <!-- ===== SECONDARY: Live Camera Scanner ===== -->
-                    <!-- Scanner Video Container (hidden when camera fails to prevent empty space) -->
-                    <div id="reader" x-show="!cameraFailed" class="w-full bg-slate-100 rounded-2xl overflow-hidden border border-slate-200" style="min-height: 200px;"></div>
+                    <!-- ===== SECONDARY: Native Live Camera Scanner (<video> + jsQR) ===== -->
+                    <div x-show="!cameraFailed" class="relative w-full aspect-[4/3] bg-slate-900 rounded-2xl overflow-hidden shadow-inner border border-slate-200 flex items-center justify-center">
+                        <video id="native-qr-video" class="w-full h-full object-cover" playsinline autoplay muted></video>
+                        <canvas id="native-qr-canvas" class="hidden"></canvas>
+                        
+                        <!-- Target Viewfinder Overlay -->
+                        <div class="absolute inset-0 pointer-events-none flex items-center justify-center p-6">
+                            <div class="w-48 h-48 sm:w-56 sm:h-56 border-2 border-emerald-400/80 rounded-2xl relative shadow-[0_0_20px_rgba(52,211,153,0.3)] flex items-center justify-center">
+                                <div class="w-full h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-pulse"></div>
+                                <!-- Corner indicators -->
+                                <div class="absolute -top-1 -left-1 w-5 h-5 border-t-4 border-l-4 border-emerald-400 rounded-tl-lg"></div>
+                                <div class="absolute -top-1 -right-1 w-5 h-5 border-t-4 border-r-4 border-emerald-400 rounded-tr-lg"></div>
+                                <div class="absolute -bottom-1 -left-1 w-5 h-5 border-b-4 border-l-4 border-emerald-400 rounded-bl-lg"></div>
+                                <div class="absolute -bottom-1 -right-1 w-5 h-5 border-b-4 border-r-4 border-emerald-400 rounded-br-lg"></div>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Status Message & Retry Action -->
                     <div x-show="qrMessage" class="mt-3 p-3 rounded-2xl text-xs font-semibold text-center leading-relaxed" :class="qrSuccess ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-amber-50 text-amber-800 border border-amber-200'">
@@ -190,10 +204,12 @@
 function studentLoginHandler() {
     return {
         qrModalOpen: false,
-        qrScanner: null,
         qrMessage: '',
         qrSuccess: false,
         cameraFailed: false,
+        mediaStream: null,
+        animFrameId: null,
+        isScanning: false,
         isHttp: window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1',
 
         openQrModal() {
@@ -207,45 +223,33 @@ function studentLoginHandler() {
 
         closeQrModal() {
             this.qrModalOpen = false;
-            this.stopAndClear().catch(() => {});
+            this.stopAndClear();
         },
 
-        /**
-         * Stop active scanner and clear DOM. Returns a Promise.
-         */
         stopAndClear() {
-            const self = this;
-            const scanner = self.qrScanner;
-            self.qrScanner = null;
-
-            // Clear the #reader div manually to prevent "element already in use" errors
-            const readerEl = document.getElementById('reader');
-            if (readerEl) readerEl.innerHTML = '';
-
-            if (!scanner) return Promise.resolve();
-
-            try {
-                return scanner.stop()
-                    .then(() => { try { scanner.clear(); } catch (e) {} })
-                    .catch(() => { try { scanner.clear(); } catch (e) {} });
-            } catch (e) {
-                try { scanner.clear(); } catch (e) {}
-                return Promise.resolve();
+            this.isScanning = false;
+            if (this.animFrameId) {
+                cancelAnimationFrame(this.animFrameId);
+                this.animFrameId = null;
             }
+            if (this.mediaStream) {
+                try {
+                    this.mediaStream.getTracks().forEach(track => track.stop());
+                } catch(e) {}
+                this.mediaStream = null;
+            }
+            const video = document.getElementById('native-qr-video');
+            if (video) {
+                video.srcObject = null;
+            }
+            return Promise.resolve();
         },
 
         initScanner() {
             const self = this;
 
-            if (typeof Html5Qrcode === 'undefined') {
-                self.qrMessage = 'Library QR Scanner tidak dapat dimuat. Pastikan koneksi internet stabil lalu muat ulang halaman.';
-                self.qrSuccess = false;
-                self.cameraFailed = true;
-                return;
-            }
-
             if (self.isHttp) {
-                self.qrMessage = 'Kamera live memerlukan HTTPS. Gunakan tombol "Upload / Ambil Foto QR Code" di bawah sebagai alternatif.';
+                self.qrMessage = '🔒 Kamera live memerlukan HTTPS. Gunakan tombol "Upload Foto QR" di atas sebagai alternatif.';
                 self.qrSuccess = false;
                 self.cameraFailed = true;
                 return;
@@ -256,11 +260,11 @@ function studentLoginHandler() {
             self.cameraFailed = false;
 
             self.stopAndClear().then(() => {
-                self.startCameraStream();
+                self.startNativeCamera();
             });
         },
 
-        startCameraStream() {
+        startNativeCamera() {
             const self = this;
 
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -268,94 +272,80 @@ function studentLoginHandler() {
                 return;
             }
 
-            // Clear DOM once more to be safe
-            const readerEl = document.getElementById('reader');
-            if (readerEl) readerEl.innerHTML = '';
+            const constraintsOptions = [
+                { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } } },
+                { video: { facingMode: "user" } },
+                { video: true }
+            ];
 
-            const html5QrCode = new Html5Qrcode("reader");
-            self.qrScanner = html5QrCode;
+            const tryGetUserMedia = (index) => {
+                if (index >= constraintsOptions.length) {
+                    self.handleCameraError({ name: 'NotFoundError' });
+                    return;
+                }
 
-            const qrboxFn = (w, h) => {
-                const edge = Math.floor(Math.min(w, h) * 0.78);
-                return { width: Math.max(edge, 180), height: Math.max(edge, 180) };
+                navigator.mediaDevices.getUserMedia(constraintsOptions[index])
+                    .then(stream => {
+                        self.mediaStream = stream;
+                        const video = document.getElementById('native-qr-video');
+                        if (!video) return;
+
+                        video.srcObject = stream;
+                        video.setAttribute("playsinline", true);
+                        video.play().then(() => {
+                            self.qrMessage = '✅ Kamera aktif! Arahkan ke QR Code pada kartu pemilih.';
+                            self.qrSuccess = true;
+                            self.cameraFailed = false;
+                            self.isScanning = true;
+                            self.animFrameId = requestAnimationFrame(() => self.scanFrame());
+                        }).catch(err => {
+                            self.handleCameraError(err);
+                        });
+                    })
+                    .catch(err => {
+                        const errName = (err && err.name) ? err.name : String(err);
+                        if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
+                            self.handleCameraError(err);
+                        } else {
+                            tryGetUserMedia(index + 1);
+                        }
+                    });
             };
-            const config = { fps: 10, qrbox: qrboxFn, aspectRatio: 1.0 };
 
-            // Strategy: Try facingMode "environment" (rear camera) directly first.
-            // Direct start triggers native getUserMedia browser permission dialog without failing on getCameras() pre-check.
-            html5QrCode.start(
-                { facingMode: "environment" },
-                config,
-                (decodedText) => self.processQrPayload(decodedText),
-                () => {}
-            )
-            .then(() => {
-                self.qrMessage = '✅ Kamera aktif! Arahkan ke QR Code pada kartu pemilih.';
-                self.qrSuccess = true;
-                self.cameraFailed = false;
-            })
-            .catch((err1) => {
-                console.warn('First attempt (facingMode environment) failed, trying user camera fallback...', err1);
+            tryGetUserMedia(0);
+        },
 
-                // Fallback 1: Try facingMode "user" (for laptops/desktops with front camera)
-                self.stopAndClear().then(() => {
-                    if (document.getElementById('reader')) document.getElementById('reader').innerHTML = '';
-                    const html5QrCode2 = new Html5Qrcode("reader");
-                    self.qrScanner = html5QrCode2;
+        scanFrame() {
+            const self = this;
+            if (!self.isScanning || !self.qrModalOpen) return;
 
-                    return html5QrCode2.start(
-                        { facingMode: "user" },
-                        config,
-                        (decodedText) => self.processQrPayload(decodedText),
-                        () => {}
-                    );
-                })
-                .then(() => {
-                    self.qrMessage = '✅ Kamera aktif! Arahkan ke QR Code pada kartu pemilih.';
-                    self.qrSuccess = true;
-                    self.cameraFailed = false;
-                })
-                .catch((err2) => {
-                    console.warn('Second attempt (facingMode user) failed, trying getCameras fallback...', err2);
+            const video = document.getElementById('native-qr-video');
+            const canvas = document.getElementById('native-qr-canvas');
 
-                    const finalErr = err2 || err1;
-                    const errName = (finalErr && finalErr.name) ? finalErr.name : String(finalErr);
-                    if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
-                        self.handleCameraError(finalErr);
+            if (video && canvas && video.readyState === video.HAVE_ENOUGH_DATA) {
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+                if (typeof jsQR !== 'undefined') {
+                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                        inversionAttempts: "dontInvert",
+                    });
+
+                    if (code && code.data && code.data.trim() !== '') {
+                        self.isScanning = false;
+                        self.processQrPayload(code.data);
                         return;
                     }
+                }
+            }
 
-                    // Fallback 2: Try explicit device enumeration via getCameras()
-                    self.stopAndClear().then(() => {
-                        if (document.getElementById('reader')) document.getElementById('reader').innerHTML = '';
-                        return Html5Qrcode.getCameras();
-                    })
-                    .then(devices => {
-                        if (devices && devices.length > 0) {
-                            const html5QrCode3 = new Html5Qrcode("reader");
-                            self.qrScanner = html5QrCode3;
-
-                            return html5QrCode3.start(
-                                devices[0].id,
-                                config,
-                                (decodedText) => self.processQrPayload(decodedText),
-                                () => {}
-                            );
-                        } else {
-                            throw finalErr;
-                        }
-                    })
-                    .then(() => {
-                        self.qrMessage = '✅ Kamera aktif! Arahkan ke QR Code pada kartu pemilih.';
-                        self.qrSuccess = true;
-                        self.cameraFailed = false;
-                    })
-                    .catch((err3) => {
-                        console.error('All camera start attempts failed:', err3);
-                        self.handleCameraError(err3 || finalErr);
-                    });
-                });
-            });
+            if (self.isScanning) {
+                self.animFrameId = requestAnimationFrame(() => self.scanFrame());
+            }
         },
 
         handleCameraError(err) {
@@ -396,31 +386,47 @@ function studentLoginHandler() {
             self.qrMessage = '⏳ Membaca gambar QR Code...';
             self.qrSuccess = true;
 
-            const doScanFile = () => {
-                const readerEl = document.getElementById('reader');
-                if (readerEl) readerEl.innerHTML = '';
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
 
-                const fileScanner = new Html5Qrcode("reader");
-                fileScanner.scanFile(file, /* showImage= */ true)
-                    .then(decodedText => {
-                        try { fileScanner.clear(); } catch(e) {}
-                        self.processQrPayload(decodedText);
-                    })
-                    .catch(() => {
-                        try { fileScanner.clear(); } catch(e) {}
-                        self.qrMessage = '❌ QR Code tidak terdeteksi dari foto ini.\n\nPastikan:\n• Foto cukup terang & fokus\n• Seluruh QR Code terlihat penuh\n• Gambar tidak buram';
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+                    if (typeof jsQR !== 'undefined') {
+                        const code = jsQR(imageData.data, imageData.width, imageData.height);
+                        if (code && code.data) {
+                            self.processQrPayload(code.data);
+                            return;
+                        }
+                    }
+
+                    // Fallback to Html5Qrcode scanFile if jsQR failed on photo
+                    if (typeof Html5Qrcode !== 'undefined') {
+                        const fileScanner = new Html5Qrcode("native-qr-canvas");
+                        fileScanner.scanFile(file, false)
+                            .then(decodedText => {
+                                self.processQrPayload(decodedText);
+                            })
+                            .catch(() => {
+                                self.qrMessage = '❌ QR Code tidak terdeteksi dari foto ini.\n\nPastikan:\n• Foto cukup terang & fokus\n• Seluruh QR Code terlihat penuh\n• Gambar tidak buram';
+                                self.qrSuccess = false;
+                            });
+                    } else {
+                        self.qrMessage = '❌ QR Code tidak terdeteksi dari foto ini.\n\nPastikan foto terang & fokus.';
                         self.qrSuccess = false;
-                    });
+                    }
+                };
+                img.src = e.target.result;
             };
 
-            // Stop live camera first if running, then scan file
-            self.stopAndClear().then(() => {
-                doScanFile();
-            }).catch(() => {
-                doScanFile();
-            });
-
-            // Reset input so the same file can be re-selected
+            self.stopAndClear();
+            reader.readAsDataURL(file);
             event.target.value = '';
         },
 
@@ -428,10 +434,7 @@ function studentLoginHandler() {
             const self = this;
             self.qrMessage = '⏳ Memproses data QR Code...';
             self.qrSuccess = true;
-
-            if (self.qrScanner) {
-                try { self.qrScanner.pause(); } catch(e) {}
-            }
+            self.stopAndClear();
 
             const csrfMeta = document.querySelector('meta[name="csrf-token"]');
             if (!csrfMeta) {
@@ -453,18 +456,15 @@ function studentLoginHandler() {
                 if (data.success) {
                     self.qrMessage = '✅ Login berhasil! Mengarahkan ke halaman voting...';
                     self.qrSuccess = true;
-                    self.stopAndClear().catch(() => {});
                     setTimeout(() => { window.location.href = data.redirect; }, 600);
                 } else {
                     self.qrMessage = '❌ ' + (data.message || 'QR Code tidak valid.');
                     self.qrSuccess = false;
-                    if (self.qrScanner) try { self.qrScanner.resume(); } catch(e) {}
                 }
             })
             .catch(() => {
                 self.qrMessage = '❌ Gagal terhubung ke server. Periksa koneksi internet lalu coba lagi.';
                 self.qrSuccess = false;
-                if (self.qrScanner) try { self.qrScanner.resume(); } catch(e) {}
             });
         }
     };
