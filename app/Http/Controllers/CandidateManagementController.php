@@ -48,7 +48,7 @@ class CandidateManagementController extends Controller
         ]);
 
         $fotoPath = null;
-        if ($request->hasFile('foto')) {
+        if ($request->hasFile('foto') && $request->file('foto')->isValid()) {
             $fotoPath = $this->compressAndStoreImage($request->file('foto'), 'candidates');
         }
 
@@ -90,7 +90,7 @@ class CandidateManagementController extends Controller
         ]);
 
         $fotoPath = $candidate->foto;
-        if ($request->hasFile('foto')) {
+        if ($request->hasFile('foto') && $request->file('foto')->isValid()) {
             if ($candidate->foto && Storage::disk('public')->exists($candidate->foto)) {
                 Storage::disk('public')->delete($candidate->foto);
             }

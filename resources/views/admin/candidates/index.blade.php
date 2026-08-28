@@ -9,7 +9,6 @@
     selectedIds: [],
     editPhotoPreview: null,
     addPhotoPreview: null,
-    isCompressing: false,
     toggleOne(id) {
         const idx = this.selectedIds.indexOf(id);
         if (idx === -1) {
@@ -29,19 +28,14 @@
     },
     handlePhotoSelect(event, type) {
         const input = event.target;
-        if (!input.files || !input.files[0]) return;
-        this.isCompressing = true;
-        autoCompressPhoto(input, () => {
-            this.isCompressing = false;
-            if (input.files && input.files[0]) {
-                const url = URL.createObjectURL(input.files[0]);
-                if (type === 'edit') {
-                    this.editPhotoPreview = url;
-                } else {
-                    this.addPhotoPreview = url;
-                }
+        if (input.files && input.files[0]) {
+            const url = URL.createObjectURL(input.files[0]);
+            if (type === 'edit') {
+                this.editPhotoPreview = url;
+            } else {
+                this.addPhotoPreview = url;
             }
-        });
+        }
     }
 }">
     
@@ -211,8 +205,7 @@
                             </div>
                             <div class="flex-1">
                                 <input type="file" name="foto" accept="image/*" @change="handlePhotoSelect($event, 'add')" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-100 file:text-emerald-700 hover:file:bg-emerald-200">
-                                <p x-show="!isCompressing" class="text-[10px] text-slate-400 mt-1">Foto HP/Kamera dikompres otomatis oleh sistem (max 10MB).</p>
-                                <p x-show="isCompressing" x-cloak class="text-[10px] text-emerald-600 font-bold mt-1 animate-pulse">⚡ Mengompres dan memproses foto...</p>
+                                <p class="text-[10px] text-slate-400 mt-1">Format: JPG, PNG, WEBP (Max 10MB). Sistem mengompres foto secara otomatis saat disimpan.</p>
                             </div>
                         </div>
                     </div>
@@ -229,7 +222,7 @@
 
                     <div class="flex justify-end space-x-3 pt-2">
                         <button type="button" @click="addModalOpen = false" class="px-4 py-2 bg-slate-200 text-slate-800 text-xs font-bold rounded-xl">Batal</button>
-                        <button type="submit" :disabled="isCompressing" :class="isCompressing ? 'opacity-50 cursor-not-allowed' : ''" class="px-5 py-2 bg-emerald-600 text-white text-xs font-extrabold rounded-xl hover:bg-emerald-700">Simpan Calon</button>
+                        <button type="submit" class="px-5 py-2 bg-emerald-600 text-white text-xs font-extrabold rounded-xl hover:bg-emerald-700">Simpan Calon</button>
                     </div>
                 </form>
             </div>
@@ -278,8 +271,7 @@
                             </div>
                             <div class="flex-1">
                                 <input type="file" name="foto" accept="image/*" @change="handlePhotoSelect($event, 'edit')" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-100 file:text-emerald-700 hover:file:bg-emerald-200">
-                                <p x-show="!isCompressing" class="text-[10px] text-slate-400 mt-1">Pilih foto baru untuk mengganti. Otomatis dikompres (max 10MB).</p>
-                                <p x-show="isCompressing" x-cloak class="text-[10px] text-emerald-600 font-bold mt-1 animate-pulse">⚡ Mengompres dan memproses foto...</p>
+                                <p class="text-[10px] text-slate-400 mt-1">Pilih foto baru jika ingin mengganti (Max 10MB). Otomatis dikompres saat disimpan.</p>
                             </div>
                         </div>
                     </div>
@@ -304,7 +296,7 @@
 
                     <div class="flex justify-end space-x-3 pt-2">
                         <button type="button" @click="editModalOpen = false" class="px-4 py-2 bg-slate-200 text-slate-800 text-xs font-bold rounded-xl">Batal</button>
-                        <button type="submit" :disabled="isCompressing" :class="isCompressing ? 'opacity-50 cursor-not-allowed' : ''" class="px-5 py-2 bg-emerald-600 text-white text-xs font-extrabold rounded-xl hover:bg-emerald-700">Simpan Perubahan</button>
+                        <button type="submit" class="px-5 py-2 bg-emerald-600 text-white text-xs font-extrabold rounded-xl hover:bg-emerald-700">Simpan Perubahan</button>
                     </div>
                 </form>
             </div>
@@ -419,71 +411,4 @@
     </div>
 
 </div>
-
-<script>
-/**
- * Kompres otomatis file foto calon (max 800x800 px JPEG, 82% quality)
- * Mengubah file 5MB-15MB dari kamera HP menjadi ~100KB agar tidak menabrak batas limit Nginx/PHP server.
- */
-function autoCompressPhoto(input, callback) {
-    if (!input.files || !input.files[0]) {
-        if (callback) callback();
-        return;
-    }
-    const file = input.files[0];
-    if (!file.type.startsWith('image/')) {
-        if (callback) callback();
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const img = new Image();
-        img.onload = function() {
-            const maxWidth = 800;
-            const maxHeight = 800;
-            let width = img.width;
-            let height = img.height;
-
-            if (width > maxWidth || height > maxHeight) {
-                if (width > height) {
-                    height = Math.round((height * maxWidth) / width);
-                    width = maxWidth;
-                } else {
-                    width = Math.round((width * maxHeight) / height);
-                    height = maxHeight;
-                }
-            }
-
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-
-            canvas.toBlob(function(blob) {
-                if (blob) {
-                    const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
-                        type: 'image/jpeg',
-                        lastModified: Date.now()
-                    });
-
-                    const dataTransfer = new DataTransfer();
-                    dataTransfer.items.add(compressedFile);
-                    input.files = dataTransfer.files;
-                }
-                if (callback) callback();
-            }, 'image/jpeg', 0.82);
-        };
-        img.onerror = function() {
-            if (callback) callback();
-        };
-        img.src = e.target.result;
-    };
-    reader.onerror = function() {
-        if (callback) callback();
-    };
-    reader.readAsDataURL(file);
-}
-</script>
 @endsection
