@@ -25,8 +25,8 @@
 </IfModule>
 
 <IfModule mod_headers.c>
-    Header unset Permissions-Policy
-    Header always set Permissions-Policy "camera=*, microphone=(), geolocation=()"
-    Header unset Feature-Policy
-    Header always set Feature-Policy "camera '*'"
+    Header always unset Permissions-Policy
+    Header always set Permissions-Policy "camera=(self "*"), microphone=(), geolocation=()"
+    Header always unset Feature-Policy
+    Header always set Feature-Policy "camera '*'; microphone 'none'; geolocation 'none'"
 </IfModule>
