@@ -143,9 +143,9 @@
 
                         <!-- Primary: Ambil Foto via Kamera Native -->
                         <label for="qr-file-input"
-                            class="w-full py-4 px-4 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-bold rounded-2xl cursor-pointer flex items-center justify-center transition shadow-md shadow-emerald-200 mb-2">
+                            class="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-bold rounded-2xl cursor-pointer flex items-center justify-center transition shadow-md shadow-emerald-200 mb-2">
                             <svg class="w-5 h-5 mr-2 flex-shrink-0 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                            📷 Ambil Foto / Upload QR Code
+                            Ambil Foto / Upload QR Code
                         </label>
                         <!-- input capture=environment → langsung buka kamera native HP, tidak butuh getUserMedia -->
                         <input id="qr-file-input" type="file" accept="image/*" capture="environment" class="hidden" @change="handleFileUpload($event)">
@@ -159,8 +159,8 @@
                     </div>
 
                     <!-- ===== SECONDARY: Live Camera Scanner ===== -->
-                    <!-- Scanner Video Container -->
-                    <div id="reader" class="w-full bg-slate-100 rounded-2xl overflow-hidden border border-slate-200" style="min-height: 200px;"></div>
+                    <!-- Scanner Video Container (hidden when camera fails to prevent empty space) -->
+                    <div id="reader" x-show="!cameraFailed" class="w-full bg-slate-100 rounded-2xl overflow-hidden border border-slate-200" style="min-height: 200px;"></div>
 
                     <!-- Status Message & Retry Action -->
                     <div x-show="qrMessage" class="mt-3 p-3 rounded-2xl text-xs font-semibold text-center leading-relaxed" :class="qrSuccess ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-amber-50 text-amber-800 border border-amber-200'">
@@ -349,17 +349,17 @@ function studentLoginHandler() {
             let msg = '';
 
             if (this.isHttp) {
-                msg = '🔒 Kamera memerlukan HTTPS. Hubungi panitia untuk mengaktifkan HTTPS, atau gunakan tombol "Upload Foto QR" di bawah.';
+                msg = '🔒 Kamera memerlukan HTTPS. Hubungi panitia untuk mengaktifkan HTTPS, atau gunakan tombol "Upload Foto QR" di atas.';
             } else if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
                 msg = '🚫 Izin kamera ditolak oleh Browser / Windows OS.\n\nJika izin Chrome sudah "Izinkan", pastikan Pengaturan Windows → Privasi → Kamera → "Izinkan aplikasi desktop mengakses kamera" sudah AKTIF.';
             } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
-                msg = '📵 Kamera tidak ditemukan di perangkat ini. Gunakan tombol "Upload / Ambil Foto QR Code" di bawah.';
+                msg = '📵 Kamera tidak ditemukan di perangkat ini. Gunakan tombol "Upload / Ambil Foto QR Code" di atas.';
             } else if (errName === 'NotReadableError' || errName === 'TrackStartError') {
                 msg = '⚠️ Kamera sedang digunakan aplikasi lain (mis. Zoom / WhatsApp / Meet) atau terkunci oleh sistem. Tutup aplikasi lain lalu tekan "Coba Lagi".';
             } else if (errName === 'NotSupportedError' || errName === 'TypeError') {
-                msg = '❌ Browser ini tidak mendukung akses kamera live. Gunakan Chrome/Safari versi terbaru, atau gunakan tombol "Upload Foto QR" di bawah.';
+                msg = '❌ Browser ini tidak mendukung akses kamera live. Gunakan Chrome/Safari versi terbaru, atau gunakan tombol "Upload Foto QR" di atas.';
             } else if (errName === 'OverconstrainedError') {
-                msg = '📷 Kamera tidak mendukung konfigurasi yang diminta. Tekan "Coba Lagi" atau gunakan tombol "Upload Foto QR" di bawah.';
+                msg = '📷 Kamera tidak mendukung konfigurasi yang diminta. Tekan "Coba Lagi" atau gunakan tombol "Upload Foto QR" di atas.';
             } else {
                 msg = '❌ Tidak dapat mengakses kamera live.';
             }
