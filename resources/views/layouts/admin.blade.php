@@ -149,6 +149,20 @@
                         <span class="font-medium">{{ session('error') }}</span>
                     </div>
                 @endif
+
+                @if(isset($errors) && $errors->any())
+                    <div class="p-4 mb-4 text-sm text-rose-800 bg-rose-50 border border-rose-200 rounded-2xl shadow-sm space-y-1">
+                        <div class="flex items-center font-bold">
+                            <svg class="w-5 h-5 mr-2 text-rose-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <span>Terjadi kesalahan pada input data:</span>
+                        </div>
+                        <ul class="list-disc list-inside text-xs pl-7 space-y-0.5">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
             </div>
 
             <!-- Page Body -->

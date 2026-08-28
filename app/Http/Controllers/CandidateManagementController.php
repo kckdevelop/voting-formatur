@@ -35,7 +35,7 @@ class CandidateManagementController extends Controller
             'nama' => 'required|string|max:255',
             'nis' => 'nullable|string|max:50',
             'kelas' => 'required|string|max:100',
-            'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:10240',
             'visi' => 'nullable|string',
             'misi' => 'nullable|string',
         ], [
@@ -44,12 +44,12 @@ class CandidateManagementController extends Controller
             'kelas.required' => 'Kelas wajib diisi.',
             'foto.image' => 'File foto harus berupa gambar.',
             'foto.mimes' => 'Format foto yang diizinkan: JPG, JPEG, PNG, WEBP.',
-            'foto.max' => 'Ukuran foto maksimal 2MB.',
+            'foto.max' => 'Ukuran foto maksimal 10MB.',
         ]);
 
         $fotoPath = null;
         if ($request->hasFile('foto')) {
-            $fotoPath = $request->file('foto')->store('candidates', 'public');
+            $fotoPath = $this->compressAndStoreImage($request->file('foto'), 'candidates');
         }
 
         $candidate = Candidate::create([
@@ -75,10 +75,18 @@ class CandidateManagementController extends Controller
             'nama' => 'required|string|max:255',
             'nis' => 'nullable|string|max:50',
             'kelas' => 'required|string|max:100',
-            'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:10240',
             'visi' => 'nullable|string',
             'misi' => 'nullable|string',
             'status' => 'required|in:active,inactive',
+        ], [
+            'nomor_urut.required' => 'Nomor urut wajib diisi.',
+            'nama.required' => 'Nama calon wajib diisi.',
+            'kelas.required' => 'Kelas wajib diisi.',
+            'foto.image' => 'File foto harus berupa gambar.',
+            'foto.mimes' => 'Format foto yang diizinkan: JPG, JPEG, PNG, WEBP.',
+            'foto.max' => 'Ukuran foto maksimal 10MB.',
+            'status.required' => 'Status calon wajib dipilih.',
         ]);
 
         $fotoPath = $candidate->foto;
@@ -86,7 +94,7 @@ class CandidateManagementController extends Controller
             if ($candidate->foto && Storage::disk('public')->exists($candidate->foto)) {
                 Storage::disk('public')->delete($candidate->foto);
             }
-            $fotoPath = $request->file('foto')->store('candidates', 'public');
+            $fotoPath = $this->compressAndStoreImage($request->file('foto'), 'candidates');
         }
 
         $candidate->update([
@@ -103,6 +111,72 @@ class CandidateManagementController extends Controller
         AuditLogService::log('UPDATE_CANDIDATE', "Memperbarui calon formatur: [{$candidate->nomor_urut}] {$candidate->nama}");
 
         return back()->with('success', "Data calon {$candidate->nama} berhasil diperbarui.");
+    }
+
+    private function compressAndStoreImage($file, string $directory = 'candidates'): string
+    {
+        $filename = \Illuminate\Support\Str::random(40) . '.jpg';
+        $fullDirectory = storage_path('app/public/' . $directory);
+
+        if (!file_exists($fullDirectory)) {
+            mkdir($fullDirectory, 0755, true);
+        }
+
+        $targetPath = $fullDirectory . '/' . $filename;
+
+        if (extension_loaded('gd')) {
+            try {
+                $imageInfo = @getimagesize($file->getRealPath());
+                if ($imageInfo) {
+                    $mime = $imageInfo['mime'];
+                    $sourceImg = null;
+
+                    switch ($mime) {
+                        case 'image/jpeg':
+                            $sourceImg = @imagecreatefromjpeg($file->getRealPath());
+                            break;
+                        case 'image/png':
+                            $sourceImg = @imagecreatefrompng($file->getRealPath());
+                            break;
+                        case 'image/webp':
+                            $sourceImg = @imagecreatefromwebp($file->getRealPath());
+                            break;
+                    }
+
+                    if ($sourceImg) {
+                        $origWidth = imagesx($sourceImg);
+                        $origHeight = imagesy($sourceImg);
+
+                        $maxWidth = 800;
+                        $maxHeight = 800;
+
+                        if ($origWidth > $maxWidth || $origHeight > $maxHeight) {
+                            $ratio = min($maxWidth / $origWidth, $maxHeight / $origHeight);
+                            $newWidth = (int) round($origWidth * $ratio);
+                            $newHeight = (int) round($origHeight * $ratio);
+                        } else {
+                            $newWidth = $origWidth;
+                            $newHeight = $origHeight;
+                        }
+
+                        $newImg = imagecreatetruecolor($newWidth, $newHeight);
+                        $white = imagecolorallocate($newImg, 255, 255, 255);
+                        imagefill($newImg, 0, 0, $white);
+                        imagecopyresampled($newImg, $sourceImg, 0, 0, 0, 0, $newWidth, $newHeight, $origWidth, $origHeight);
+
+                        imagejpeg($newImg, $targetPath, 82);
+                        imagedestroy($sourceImg);
+                        imagedestroy($newImg);
+
+                        return $directory . '/' . $filename;
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Fallback to standard Laravel file store if GD process fails
+            }
+        }
+
+        return $file->store($directory, 'public');
     }
 
     public function destroy(Candidate $candidate)

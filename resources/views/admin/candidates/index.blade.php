@@ -7,6 +7,9 @@
     importModalOpen: false,
     activeCandidate: null,
     selectedIds: [],
+    editPhotoPreview: null,
+    addPhotoPreview: null,
+    isCompressing: false,
     toggleOne(id) {
         const idx = this.selectedIds.indexOf(id);
         if (idx === -1) {
@@ -23,6 +26,22 @@
         if (confirm('Hapus ' + this.selectedIds.length + ' calon formatur yang dipilih?\nFoto akan ikut dihapus dari sistem. Tindakan ini tidak bisa dibatalkan!')) {
             document.getElementById('bulk-delete-form-candidates').submit();
         }
+    },
+    handlePhotoSelect(event, type) {
+        const input = event.target;
+        if (!input.files || !input.files[0]) return;
+        this.isCompressing = true;
+        autoCompressPhoto(input, () => {
+            this.isCompressing = false;
+            if (input.files && input.files[0]) {
+                const url = URL.createObjectURL(input.files[0]);
+                if (type === 'edit') {
+                    this.editPhotoPreview = url;
+                } else {
+                    this.addPhotoPreview = url;
+                }
+            }
+        });
     }
 }">
     
@@ -39,7 +58,7 @@
                 Import Excel
             </button>
 
-            <button type="button" @click="addModalOpen = true" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-2xl shadow-md transition flex items-center justify-center">
+            <button type="button" @click="addPhotoPreview = null; addModalOpen = true" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-2xl shadow-md transition flex items-center justify-center">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                 Tambah Calon Formatur
             </button>
@@ -105,7 +124,7 @@
                         </span>
 
                         <div class="flex items-center space-x-1">
-                            <button type="button" @click="activeCandidate = {{ json_encode($candidate) }}; editModalOpen = true" class="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition" title="Edit Calon">
+                            <button type="button" @click="activeCandidate = {{ json_encode($candidate) }}; editPhotoPreview = activeCandidate.foto ? '/storage/' + activeCandidate.foto : null; editModalOpen = true" class="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition" title="Edit Calon">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                             </button>
 
@@ -180,9 +199,22 @@
                     </div>
 
                     <div>
-                        <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Foto Calon (Otomatis Kompres Kantor / HP)</label>
-                        <input type="file" name="foto" accept="image/*" onchange="autoCompressPhoto(this)" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
-                        <p class="text-[10px] text-slate-400 mt-1">Foto besar dari HP/Kamera akan dikompres otomatis oleh sistem agar upload ultra-cepat.</p>
+                        <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Foto Calon Formatur</label>
+                        <div class="flex items-center gap-4">
+                            <div class="w-16 h-16 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 flex-shrink-0 flex items-center justify-center shadow-inner">
+                                <template x-if="addPhotoPreview">
+                                    <img :src="addPhotoPreview" class="w-full h-full object-cover">
+                                </template>
+                                <template x-if="!addPhotoPreview">
+                                    <svg class="w-7 h-7 text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                                </template>
+                            </div>
+                            <div class="flex-1">
+                                <input type="file" name="foto" accept="image/*" @change="handlePhotoSelect($event, 'add')" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-100 file:text-emerald-700 hover:file:bg-emerald-200">
+                                <p x-show="!isCompressing" class="text-[10px] text-slate-400 mt-1">Foto HP/Kamera dikompres otomatis oleh sistem (max 10MB).</p>
+                                <p x-show="isCompressing" x-cloak class="text-[10px] text-emerald-600 font-bold mt-1 animate-pulse">⚡ Mengompres dan memproses foto...</p>
+                            </div>
+                        </div>
                     </div>
 
                     <div>
@@ -197,7 +229,7 @@
 
                     <div class="flex justify-end space-x-3 pt-2">
                         <button type="button" @click="addModalOpen = false" class="px-4 py-2 bg-slate-200 text-slate-800 text-xs font-bold rounded-xl">Batal</button>
-                        <button type="submit" class="px-5 py-2 bg-emerald-600 text-white text-xs font-extrabold rounded-xl hover:bg-emerald-700">Simpan Calon</button>
+                        <button type="submit" :disabled="isCompressing" :class="isCompressing ? 'opacity-50 cursor-not-allowed' : ''" class="px-5 py-2 bg-emerald-600 text-white text-xs font-extrabold rounded-xl hover:bg-emerald-700">Simpan Calon</button>
                     </div>
                 </form>
             </div>
@@ -234,8 +266,22 @@
                     </div>
 
                     <div>
-                        <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Foto Baru (opsional - Otomatis Kompres)</label>
-                        <input type="file" name="foto" accept="image/*" onchange="autoCompressPhoto(this)" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                        <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Foto Calon Formatur</label>
+                        <div class="flex items-center gap-4">
+                            <div class="w-16 h-16 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 flex-shrink-0 flex items-center justify-center shadow-inner">
+                                <template x-if="editPhotoPreview">
+                                    <img :src="editPhotoPreview" class="w-full h-full object-cover">
+                                </template>
+                                <template x-if="!editPhotoPreview">
+                                    <svg class="w-7 h-7 text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                                </template>
+                            </div>
+                            <div class="flex-1">
+                                <input type="file" name="foto" accept="image/*" @change="handlePhotoSelect($event, 'edit')" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-100 file:text-emerald-700 hover:file:bg-emerald-200">
+                                <p x-show="!isCompressing" class="text-[10px] text-slate-400 mt-1">Pilih foto baru untuk mengganti. Otomatis dikompres (max 10MB).</p>
+                                <p x-show="isCompressing" x-cloak class="text-[10px] text-emerald-600 font-bold mt-1 animate-pulse">⚡ Mengompres dan memproses foto...</p>
+                            </div>
+                        </div>
                     </div>
 
                     <div>
@@ -258,7 +304,7 @@
 
                     <div class="flex justify-end space-x-3 pt-2">
                         <button type="button" @click="editModalOpen = false" class="px-4 py-2 bg-slate-200 text-slate-800 text-xs font-bold rounded-xl">Batal</button>
-                        <button type="submit" class="px-5 py-2 bg-emerald-600 text-white text-xs font-extrabold rounded-xl hover:bg-emerald-700">Simpan Perubahan</button>
+                        <button type="submit" :disabled="isCompressing" :class="isCompressing ? 'opacity-50 cursor-not-allowed' : ''" class="px-5 py-2 bg-emerald-600 text-white text-xs font-extrabold rounded-xl hover:bg-emerald-700">Simpan Perubahan</button>
                     </div>
                 </form>
             </div>
@@ -376,13 +422,19 @@
 
 <script>
 /**
- * Kompres otomatis file foto calon (max 800x800 px JPEG, 80% quality)
- * Mengubah file 5MB-15MB dari kamera HP menjadi ~100KB agar tidak menabrak batas limit Nginx server.
+ * Kompres otomatis file foto calon (max 800x800 px JPEG, 82% quality)
+ * Mengubah file 5MB-15MB dari kamera HP menjadi ~100KB agar tidak menabrak batas limit Nginx/PHP server.
  */
-function autoCompressPhoto(input) {
-    if (!input.files || !input.files[0]) return;
+function autoCompressPhoto(input, callback) {
+    if (!input.files || !input.files[0]) {
+        if (callback) callback();
+        return;
+    }
     const file = input.files[0];
-    if (!file.type.startsWith('image/')) return;
+    if (!file.type.startsWith('image/')) {
+        if (callback) callback();
+        return;
+    }
 
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -410,7 +462,7 @@ function autoCompressPhoto(input) {
             ctx.drawImage(img, 0, 0, width, height);
 
             canvas.toBlob(function(blob) {
-                if (blob && blob.size < file.size) {
+                if (blob) {
                     const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
                         type: 'image/jpeg',
                         lastModified: Date.now()
@@ -420,9 +472,16 @@ function autoCompressPhoto(input) {
                     dataTransfer.items.add(compressedFile);
                     input.files = dataTransfer.files;
                 }
+                if (callback) callback();
             }, 'image/jpeg', 0.82);
         };
+        img.onerror = function() {
+            if (callback) callback();
+        };
         img.src = e.target.result;
+    };
+    reader.onerror = function() {
+        if (callback) callback();
     };
     reader.readAsDataURL(file);
 }
