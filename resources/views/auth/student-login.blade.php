@@ -281,64 +281,79 @@ function studentLoginHandler() {
             };
             const config = { fps: 10, qrbox: qrboxFn, aspectRatio: 1.0 };
 
-            // Strategy: First try getCameras() to select best camera (works great on laptop/desktop & mobile)
-            Html5Qrcode.getCameras().then(devices => {
-                if (devices && devices.length > 0) {
-                    // Find back camera if available, otherwise pick the first available camera (e.g. Laptop BisonCam)
-                    const backCamera = devices.find(d =>
-                        /back|rear|belakang|environment/i.test(d.label)
-                    );
-                    const selectedCameraId = backCamera ? backCamera.id : devices[0].id;
-
-                    return html5QrCode.start(
-                        selectedCameraId,
-                        config,
-                        (decodedText) => self.processQrPayload(decodedText),
-                        () => {}
-                    );
-                } else {
-                    // Fallback to facingMode constraint if no devices enumerated
-                    return html5QrCode.start(
-                        { facingMode: "user" },
-                        config,
-                        (decodedText) => self.processQrPayload(decodedText),
-                        () => {}
-                    );
-                }
-            })
+            // Strategy: Try facingMode "environment" (rear camera) directly first.
+            // Direct start triggers native getUserMedia browser permission dialog without failing on getCameras() pre-check.
+            html5QrCode.start(
+                { facingMode: "environment" },
+                config,
+                (decodedText) => self.processQrPayload(decodedText),
+                () => {}
+            )
             .then(() => {
                 self.qrMessage = '✅ Kamera aktif! Arahkan ke QR Code pada kartu pemilih.';
                 self.qrSuccess = true;
                 self.cameraFailed = false;
             })
             .catch((err1) => {
-                console.warn('First camera attempt failed, trying facingMode environment fallback...', err1);
+                console.warn('First attempt (facingMode environment) failed, trying user camera fallback...', err1);
 
-                const errName = (err1 && err1.name) ? err1.name : String(err1);
-                if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
-                    self.handleCameraError({ name: 'NotAllowedError' });
-                    return;
-                }
-
-                // Second attempt fallback with simple environment constraint
+                // Fallback 1: Try facingMode "user" (for laptops/desktops with front camera)
                 self.stopAndClear().then(() => {
                     if (document.getElementById('reader')) document.getElementById('reader').innerHTML = '';
                     const html5QrCode2 = new Html5Qrcode("reader");
                     self.qrScanner = html5QrCode2;
 
                     return html5QrCode2.start(
-                        { facingMode: "environment" },
+                        { facingMode: "user" },
                         config,
                         (decodedText) => self.processQrPayload(decodedText),
                         () => {}
-                    ).then(() => {
+                    );
+                })
+                .then(() => {
+                    self.qrMessage = '✅ Kamera aktif! Arahkan ke QR Code pada kartu pemilih.';
+                    self.qrSuccess = true;
+                    self.cameraFailed = false;
+                })
+                .catch((err2) => {
+                    console.warn('Second attempt (facingMode user) failed, trying getCameras fallback...', err2);
+
+                    const finalErr = err2 || err1;
+                    const errName = (finalErr && finalErr.name) ? finalErr.name : String(finalErr);
+                    if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
+                        self.handleCameraError(finalErr);
+                        return;
+                    }
+
+                    // Fallback 2: Try explicit device enumeration via getCameras()
+                    self.stopAndClear().then(() => {
+                        if (document.getElementById('reader')) document.getElementById('reader').innerHTML = '';
+                        return Html5Qrcode.getCameras();
+                    })
+                    .then(devices => {
+                        if (devices && devices.length > 0) {
+                            const html5QrCode3 = new Html5Qrcode("reader");
+                            self.qrScanner = html5QrCode3;
+
+                            return html5QrCode3.start(
+                                devices[0].id,
+                                config,
+                                (decodedText) => self.processQrPayload(decodedText),
+                                () => {}
+                            );
+                        } else {
+                            throw finalErr;
+                        }
+                    })
+                    .then(() => {
                         self.qrMessage = '✅ Kamera aktif! Arahkan ke QR Code pada kartu pemilih.';
                         self.qrSuccess = true;
                         self.cameraFailed = false;
+                    })
+                    .catch((err3) => {
+                        console.error('All camera start attempts failed:', err3);
+                        self.handleCameraError(err3 || finalErr);
                     });
-                }).catch(err2 => {
-                    console.error('Camera start failed finally:', err2);
-                    self.handleCameraError(err2);
                 });
             });
         },
