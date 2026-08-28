@@ -11,7 +11,7 @@ use Symfony\Component\HttpFoundation\Response;
  * The hosting server sends: camera=(), microphone=(), geolocation=()
  * which blocks the QR code scanner camera access on mobile browsers.
  *
- * This middleware re-sends the header with camera allowed for same-origin pages.
+ * This middleware re-sends valid W3C Permissions-Policy headers allowing camera access.
  */
 class AllowCameraPolicy
 {
@@ -19,14 +19,15 @@ class AllowCameraPolicy
     {
         $response = $next($request);
 
-        // Allow camera explicitly for all origins (wildcard) and legacy Feature-Policy
+        // Valid W3C Permissions-Policy header syntax (RFC 8941 structured field)
+        // camera=(self "*") or camera=(*) allows camera on both same-origin and embedded scripts
         $response->headers->set(
             'Permissions-Policy',
-            'camera=*, microphone=(), geolocation=()'
+            'camera=(self "*"), microphone=(), geolocation=()'
         );
         $response->headers->set(
             'Feature-Policy',
-            "camera '*'"
+            "camera '*'; microphone 'none'; geolocation 'none'"
         );
 
         return $response;
