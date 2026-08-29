@@ -65,6 +65,7 @@
     <title>Cetak Kartu QR Code Pemilih ({{ $perPage }} Kartu/Lembar - {{ ucfirst($orientation) }}) - {{ $schoolName }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <style>
         @page {
@@ -225,6 +226,13 @@
                 &larr; Kembali
             </a>
 
+            <!-- Download as PNG Button -->
+            <button id="btn-download-img" onclick="downloadAllAsImages()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-extrabold shadow-lg shadow-indigo-600/20 transition flex items-center">
+                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                Unduh Gambar (PNG)
+            </button>
+
+            <!-- Direct Print Button -->
             <button onclick="window.print()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold shadow-lg shadow-emerald-600/20 transition flex items-center">
                 <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                 Cetak / Print Kartu (A4)
@@ -234,74 +242,86 @@
 
     <!-- Cards Sheet (Chunked dynamically per A4 page) -->
     <div class="print-container max-w-7xl mx-auto space-y-8 print:space-y-0">
+        @php $totalChunkPages = count($students->chunk($perPage)); @endphp
         @forelse($students->chunk($perPage) as $pageIndex => $studentChunk)
             
-            <div class="a4-page bg-white p-3 md:p-5 rounded-3xl shadow-lg border border-slate-200">
-                @foreach($studentChunk as $student)
-                    <div class="voter-card bg-white border-2 border-emerald-700/90 rounded-xl {{ $cardPadding }} flex flex-col justify-between relative overflow-hidden bg-gradient-to-b from-white to-slate-50/50 shadow-sm">
-                        
-                        <!-- Header Card -->
-                        <div class="flex items-center justify-between pb-0.5 border-b border-slate-200">
-                            <div class="flex items-center space-x-1.5 min-w-0">
-                                <div class="{{ $logoSize }} bg-emerald-800 rounded-md flex items-center justify-center text-white font-black flex-shrink-0 shadow-sm">
-                                    IPM
-                                </div>
-                                <div class="min-w-0 flex-1">
-                                    <h2 class="{{ $titleSize }} font-black text-emerald-900 leading-none truncate">
-                                        {{ $schoolName }}
-                                    </h2>
-                                    <p class="{{ $subTitleSize }} font-extrabold text-slate-500 uppercase tracking-tight mt-0.5">
-                                        KARTU PEMILIH E-VOTING IPM
-                                    </p>
-                                </div>
-                            </div>
-                            <span class="text-[7.5px] font-extrabold bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-1.5 py-0.5 rounded-full flex-shrink-0 ml-1">
-                                {{ date('Y') }}
-                            </span>
-                        </div>
+            <div class="space-y-2">
+                <!-- Helper header bar on screen preview -->
+                <div class="no-print flex items-center justify-between px-2 text-xs font-extrabold text-slate-500">
+                    <span>Lembar {{ $pageIndex + 1 }} dari {{ $totalChunkPages }} ({{ count($studentChunk) }} Kartu)</span>
+                    <button onclick="downloadSinglePage('page-sheet-{{ $pageIndex }}', {{ $pageIndex + 1 }})" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl text-[11px] font-bold shadow-xs transition flex items-center">
+                        <svg class="w-3.5 h-3.5 mr-1 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        Unduh Gambar Lembar Ini
+                    </button>
+                </div>
 
-                        <!-- Card Body: Details & QR -->
-                        <div class="{{ $bodyGap }} flex items-center justify-between min-w-0">
-                            <!-- Student Info -->
-                            <div class="min-w-0 flex-1 space-y-0.5 pr-1">
-                                <div>
-                                    <span class="{{ $labelSize }} uppercase font-bold text-slate-400 block leading-none">Nama Siswa</span>
-                                    <p class="{{ $nameSize }} font-black text-slate-900 leading-tight truncate mt-0.5" title="{{ $student->nama }}">{{ $student->nama }}</p>
-                                </div>
-
-                                <div class="flex items-center space-x-2 pt-0.5">
-                                    <div>
-                                        <span class="{{ $labelSize }} uppercase font-bold text-slate-400 block leading-none">NIS</span>
-                                        <p class="{{ $infoTextSize }} font-mono font-black text-emerald-700 leading-tight mt-0.5">{{ $student->nis }}</p>
+                <div id="page-sheet-{{ $pageIndex }}" class="a4-page bg-white p-3 md:p-5 rounded-3xl shadow-lg border border-slate-200">
+                    @foreach($studentChunk as $student)
+                        <div class="voter-card bg-white border-2 border-emerald-700/90 rounded-xl {{ $cardPadding }} flex flex-col justify-between relative overflow-hidden bg-gradient-to-b from-white to-slate-50/50 shadow-sm">
+                            
+                            <!-- Header Card -->
+                            <div class="flex items-center justify-between pb-0.5 border-b border-slate-200">
+                                <div class="flex items-center space-x-1.5 min-w-0">
+                                    <div class="{{ $logoSize }} bg-emerald-800 rounded-md flex items-center justify-center text-white font-black flex-shrink-0 shadow-sm">
+                                        IPM
                                     </div>
-                                    <div>
-                                        <span class="{{ $labelSize }} uppercase font-bold text-slate-400 block leading-none">Kelas</span>
-                                        <p class="{{ $infoTextSize }} font-extrabold text-slate-800 leading-tight truncate max-w-[65px] bg-slate-100 px-1 py-0.2 rounded border border-slate-200 mt-0.5">{{ $student->kelas }}</p>
+                                    <div class="min-w-0 flex-1">
+                                        <h2 class="{{ $titleSize }} font-black text-emerald-900 leading-none truncate">
+                                            {{ $schoolName }}
+                                        </h2>
+                                        <p class="{{ $subTitleSize }} font-extrabold text-slate-500 uppercase tracking-tight mt-0.5">
+                                            KARTU PEMILIH E-VOTING IPM
+                                        </p>
                                     </div>
                                 </div>
+                                <span class="text-[7.5px] font-extrabold bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-1.5 py-0.5 rounded-full flex-shrink-0 ml-1">
+                                    {{ date('Y') }}
+                                </span>
+                            </div>
 
-                                <div class="pt-0.5">
-                                    <span class="{{ $labelSize }} uppercase font-bold text-slate-400 block leading-none">Token Login</span>
-                                    <p class="{{ $tokenSize }} font-mono font-black bg-emerald-50 text-emerald-950 rounded border border-emerald-300 inline-block leading-none mt-0.5 tracking-wider shadow-xs">
-                                        {{ $student->plain_token ?? '******' }}
-                                    </p>
+                            <!-- Card Body: Details & QR -->
+                            <div class="{{ $bodyGap }} flex items-center justify-between min-w-0">
+                                <!-- Student Info -->
+                                <div class="min-w-0 flex-1 space-y-0.5 pr-1">
+                                    <div>
+                                        <span class="{{ $labelSize }} uppercase font-bold text-slate-400 block leading-none">Nama Siswa</span>
+                                        <p class="{{ $nameSize }} font-black text-slate-900 leading-tight truncate mt-0.5" title="{{ $student->nama }}">{{ $student->nama }}</p>
+                                    </div>
+
+                                    <div class="flex items-center space-x-2 pt-0.5">
+                                        <div>
+                                            <span class="{{ $labelSize }} uppercase font-bold text-slate-400 block leading-none">NIS</span>
+                                            <p class="{{ $infoTextSize }} font-mono font-black text-emerald-700 leading-tight mt-0.5">{{ $student->nis }}</p>
+                                        </div>
+                                        <div>
+                                            <span class="{{ $labelSize }} uppercase font-bold text-slate-400 block leading-none">Kelas</span>
+                                            <p class="{{ $infoTextSize }} font-extrabold text-slate-800 leading-tight truncate max-w-[65px] bg-slate-100 px-1 py-0.2 rounded border border-slate-200 mt-0.5">{{ $student->kelas }}</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="pt-0.5">
+                                        <span class="{{ $labelSize }} uppercase font-bold text-slate-400 block leading-none">Token Login</span>
+                                        <p class="{{ $tokenSize }} font-mono font-black bg-emerald-50 text-emerald-950 rounded border border-emerald-300 inline-block leading-none mt-0.5 tracking-wider shadow-xs">
+                                            {{ $student->plain_token ?? '******' }}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <!-- QR Code Container -->
+                                <div class="{{ $qrBoxSize }} bg-white p-1 rounded-xl border border-emerald-300/80 shadow-xs flex flex-col items-center justify-center flex-shrink-0">
+                                    <div id="qrcode-{{ $student->id }}" class="flex items-center justify-center w-full h-full"></div>
                                 </div>
                             </div>
 
-                            <!-- QR Code Container -->
-                            <div class="{{ $qrBoxSize }} bg-white p-1 rounded-xl border border-emerald-300/80 shadow-xs flex flex-col items-center justify-center flex-shrink-0">
-                                <div id="qrcode-{{ $student->id }}" class="flex items-center justify-center w-full h-full"></div>
+                            <!-- Card Footer -->
+                            <div class="pt-0.5 border-t border-slate-100 flex items-center justify-between {{ $footerSize }} text-slate-400 font-semibold leading-none">
+                                <span>Formatur {{ date('Y') }}</span>
+                                <span class="text-emerald-700 font-bold">Login QR</span>
                             </div>
-                        </div>
 
-                        <!-- Card Footer -->
-                        <div class="pt-0.5 border-t border-slate-100 flex items-center justify-between {{ $footerSize }} text-slate-400 font-semibold leading-none">
-                            <span>Formatur {{ date('Y') }}</span>
-                            <span class="text-emerald-700 font-bold">Login QR</span>
                         </div>
-
-                    </div>
-                @endforeach
+                    @endforeach
+                </div>
             </div>
 
         @empty
@@ -311,7 +331,7 @@
         @endforelse
     </div>
 
-    <!-- Script to Generate QR Codes client side -->
+    <!-- Script to Generate QR Codes & Export Images -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             @foreach($students as $student)
@@ -336,6 +356,76 @@
                 })();
             @endforeach
         });
+
+        async function downloadSinglePage(pageId, pageNum) {
+            const page = document.getElementById(pageId);
+            if (!page || typeof html2canvas === 'undefined') {
+                alert('Library pemroses gambar belum siap. Silakan coba lagi.');
+                return;
+            }
+
+            try {
+                const canvas = await html2canvas(page, {
+                    scale: 2.5,
+                    useCORS: true,
+                    backgroundColor: '#ffffff',
+                    logging: false
+                });
+
+                const link = document.createElement('a');
+                link.download = `Kartu_Pemilih_IPM_Lembar_${pageNum}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            } catch (err) {
+                console.error(err);
+                alert('Gagal mengunduh gambar kartu: ' + err.message);
+            }
+        }
+
+        async function downloadAllAsImages() {
+            if (typeof html2canvas === 'undefined') {
+                alert('Library pemroses gambar belum siap. Silakan coba lagi.');
+                return;
+            }
+
+            const btn = document.getElementById('btn-download-img');
+            const originalHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `
+                <svg class="animate-spin w-4 h-4 mr-1.5 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Memproses Gambar...
+            `;
+
+            const pages = document.querySelectorAll('.a4-page');
+            try {
+                for (let i = 0; i < pages.length; i++) {
+                    const canvas = await html2canvas(pages[i], {
+                        scale: 2.5,
+                        useCORS: true,
+                        backgroundColor: '#ffffff',
+                        logging: false
+                    });
+
+                    const link = document.createElement('a');
+                    link.download = `Kartu_Pemilih_IPM_Lembar_${i + 1}.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+
+                    if (pages.length > 1) {
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Terjadi kesalahan saat memproses gambar: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            }
+        }
     </script>
 </body>
 </html>
