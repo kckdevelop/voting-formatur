@@ -467,15 +467,36 @@
 
                     window.speechSynthesis.cancel(); // Stop any active speech
 
-                    let text = `Urutan peringkat ke ${rank} adalah ${candidateName}`;
+                    let text = '';
+                    let rate = 0.88;
+                    let pitch = 1.05;
+
                     if (rank === 1) {
-                        text = `Urutan peringkat ke 1 adalah ${candidateName}. Selamat kepada Ketua Formatur terpilih!`;
+                        text = `Dan... inilah saat yang paling ditunggu-tunggu! Peringkat pertama, sekaligus Ketua Formatur terpilih... adalah... ${candidateName}! Selamat ya, semoga amanah dan sukses selalu!`;
+                        rate = 0.82;
+                        pitch = 1.1;
+                    } else if (rank === 2) {
+                        text = `Selanjutnya, di posisi peringkat kedua, kita sambut... ${candidateName}! Keren, selamat ya!`;
+                        rate = 0.86;
+                        pitch = 1.08;
+                    } else if (rank === 3) {
+                        text = `Di posisi peringkat ketiga, ada... ${candidateName}! Luar biasa, selamat!`;
+                        rate = 0.86;
+                        pitch = 1.05;
+                    } else if (rank <= 6) {
+                        text = `Peringkat ke-${rank}... adalah... ${candidateName}. Selamat bergabung sebagai formatur terpilih!`;
+                        rate = 0.88;
+                        pitch = 1.02;
+                    } else {
+                        text = `Dan untuk peringkat ke-${rank}... ${candidateName}. Selamat ya!`;
+                        rate = 0.90;
+                        pitch = 1.0;
                     }
 
                     const utterance = new SpeechSynthesisUtterance(text);
                     utterance.lang = 'id-ID';
-                    utterance.rate = 0.90;
-                    utterance.pitch = 1.0;
+                    utterance.rate = rate;
+                    utterance.pitch = pitch;
                     utterance.volume = 1.0;
 
                     // Ensure voice is strictly Indonesian
