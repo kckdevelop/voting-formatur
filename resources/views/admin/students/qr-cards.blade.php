@@ -5,10 +5,8 @@
         $orientation = 'portrait';
         $cols = 2;
         $rows = 5;
-        $cardHeightPrint = '53mm';
-        $pageHeightPrint = '280mm';
         $qrSize = 92;
-        $marginPrint = '7mm';
+        $marginPrint = '6mm';
 
         $logoSize = 'w-6.5 h-6.5 text-[9px]';
         $titleSize = 'text-[11px]';
@@ -17,7 +15,7 @@
         $nameSize = 'text-xs sm:text-[13px]';
         $infoTextSize = 'text-[11px]';
         $tokenSize = 'text-xs px-2 py-0.5';
-        $qrBoxSize = 'w-[100px] h-[100px]';
+        $qrBoxSize = 'w-[98px] h-[98px]';
         $footerSize = 'text-[8px]';
         $cardPadding = 'p-2.5 sm:p-3';
         $bodyGap = 'my-1 gap-2';
@@ -25,8 +23,6 @@
         $orientation = 'landscape';
         $cols = 5;
         $rows = 4;
-        $cardHeightPrint = '47mm';
-        $pageHeightPrint = '200mm';
         $qrSize = 48;
         $marginPrint = '5mm';
 
@@ -45,8 +41,6 @@
         $orientation = 'landscape';
         $cols = 5;
         $rows = 3;
-        $cardHeightPrint = '63mm';
-        $pageHeightPrint = '200mm';
         $qrSize = 64;
         $marginPrint = '5mm';
 
@@ -79,34 +73,70 @@
         }
 
         @media print {
-            .no-print { display: none !important; }
-            body { 
-                background: white !important; 
-                padding: 0 !important; 
-                margin: 0 !important;
+            * {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
+                color-adjust: exact !important;
             }
+
+            html, body {
+                width: 100% !important;
+                height: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            .print-container {
+                max-width: 100% !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            .print-container > * {
+                margin-top: 0 !important;
+                margin-bottom: 0 !important;
+            }
+
             .a4-page {
                 width: 100% !important;
-                height: {{ $pageHeightPrint }} !important;
-                max-height: {{ $pageHeightPrint }} !important;
-                page-break-after: always;
-                page-break-inside: avoid;
-                margin: 0 auto !important;
+                height: 100% !important;
+                max-height: 100% !important;
+                margin: 0 !important;
                 padding: 0 !important;
                 display: grid !important;
                 grid-template-columns: repeat({{ $cols }}, 1fr) !important;
                 grid-template-rows: repeat({{ $rows }}, 1fr) !important;
                 gap: 2mm !important;
                 box-sizing: border-box !important;
+                page-break-after: always !important;
+                break-after: page !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
             }
+
+            .a4-page:last-child {
+                page-break-after: auto !important;
+                break-after: auto !important;
+            }
+
             .voter-card {
-                height: {{ $cardHeightPrint }} !important;
-                max-height: {{ $cardHeightPrint }} !important;
-                overflow: hidden !important;
-                border: 1.5px solid #047857 !important;
+                height: 100% !important;
+                max-height: 100% !important;
                 box-sizing: border-box !important;
+                border: 1.5px solid #047857 !important;
+                overflow: hidden !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
             }
         }
 
@@ -203,10 +233,10 @@
     </div>
 
     <!-- Cards Sheet (Chunked dynamically per A4 page) -->
-    <div class="max-w-7xl mx-auto space-y-8 print:space-y-0">
+    <div class="print-container max-w-7xl mx-auto space-y-8 print:space-y-0">
         @forelse($students->chunk($perPage) as $pageIndex => $studentChunk)
             
-            <div class="a4-page bg-white p-3 md:p-5 rounded-3xl print:rounded-none shadow-lg print:shadow-none border border-slate-200 print:border-0">
+            <div class="a4-page bg-white p-3 md:p-5 rounded-3xl shadow-lg border border-slate-200">
                 @foreach($studentChunk as $student)
                     <div class="voter-card bg-white border-2 border-emerald-700/90 rounded-xl {{ $cardPadding }} flex flex-col justify-between relative overflow-hidden bg-gradient-to-b from-white to-slate-50/50 shadow-sm">
                         
