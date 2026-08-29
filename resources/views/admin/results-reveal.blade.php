@@ -467,30 +467,39 @@
 
                     window.speechSynthesis.cancel(); // Stop any active speech
 
+                    // Ambil 2 kata pertama saja dari nama
+                    const shortName = candidateName.trim().split(/\s+/).slice(0, 2).join(' ');
+
                     let text = '';
                     let rate = 0.88;
                     let pitch = 1.05;
+                    let delay = 400; // ms setelah sound effect
 
                     if (rank === 1) {
-                        text = `Dan... inilah saat yang paling ditunggu-tunggu! Peringkat pertama, sekaligus Ketua Formatur terpilih... adalah... ${candidateName}! Selamat ya, semoga amanah dan sukses selalu!`;
+                        text = `Urutan ke satu... ${shortName}! Selamat, semoga amanah!`;
                         rate = 0.82;
                         pitch = 1.1;
+                        delay = 1500; // fanfare rank 1 panjang ~1.3 detik
                     } else if (rank === 2) {
-                        text = `Selanjutnya, di posisi peringkat kedua, kita sambut... ${candidateName}! Keren, selamat ya!`;
+                        text = `Urutan ke dua... ${shortName}! Selamat!`;
                         rate = 0.86;
                         pitch = 1.08;
+                        delay = 700;
                     } else if (rank === 3) {
-                        text = `Di posisi peringkat ketiga, ada... ${candidateName}! Luar biasa, selamat!`;
+                        text = `Urutan ke tiga... ${shortName}! Selamat!`;
                         rate = 0.86;
                         pitch = 1.05;
+                        delay = 700;
                     } else if (rank <= 6) {
-                        text = `Peringkat ke-${rank}... adalah... ${candidateName}. Selamat bergabung sebagai formatur terpilih!`;
+                        text = `Urutan ke ${rank}... ${shortName}. Selamat!`;
                         rate = 0.88;
                         pitch = 1.02;
+                        delay = 400;
                     } else {
-                        text = `Dan untuk peringkat ke-${rank}... ${candidateName}. Selamat ya!`;
+                        text = `Urutan ke ${rank}, ${shortName}.`;
                         rate = 0.90;
                         pitch = 1.0;
+                        delay = 400;
                     }
 
                     const utterance = new SpeechSynthesisUtterance(text);
@@ -515,8 +524,9 @@
 
                     setTimeout(() => {
                         window.speechSynthesis.speak(utterance);
-                    }, 350);
+                    }, delay);
                 },
+
 
                 selectSlot(rankNum) {
                     if (this.isRevealed(rankNum)) {
