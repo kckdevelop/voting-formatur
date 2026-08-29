@@ -5,22 +5,22 @@
         $orientation = 'portrait';
         $cols = 2;
         $rows = 5;
-        $cardHeightPrint = '52mm';
+        $cardHeightPrint = '53mm';
         $pageHeightPrint = '280mm';
-        $qrSize = 64;
+        $qrSize = 104;
         $marginPrint = '8mm';
 
         $logoSize = 'w-7 h-7 text-[10px]';
-        $titleSize = 'text-[10px]';
-        $subTitleSize = 'text-[8px]';
-        $labelSize = 'text-[8px]';
-        $nameSize = 'text-xs';
-        $infoTextSize = 'text-[11px]';
-        $tokenSize = 'text-[11px] px-1.5 py-0.5';
-        $qrBoxSize = 'w-16 h-16 sm:w-20 sm:h-20';
-        $footerSize = 'text-[8px]';
+        $titleSize = 'text-[11px]';
+        $subTitleSize = 'text-[8.5px]';
+        $labelSize = 'text-[8.5px]';
+        $nameSize = 'text-xs sm:text-sm';
+        $infoTextSize = 'text-xs';
+        $tokenSize = 'text-xs px-2 py-0.5';
+        $qrBoxSize = 'w-28 h-28';
+        $footerSize = 'text-[8.5px]';
         $cardPadding = 'p-2.5 sm:p-3';
-        $bodyGap = 'my-1.5 gap-2';
+        $bodyGap = 'my-1 gap-2';
     } elseif ($perPage == 20) {
         $orientation = 'landscape';
         $cols = 5;
@@ -108,6 +108,13 @@
                 border: 1.5px solid #047857 !important;
                 box-sizing: border-box !important;
             }
+        }
+
+        [id^="qrcode-"] img, [id^="qrcode-"] canvas {
+            display: block !important;
+            margin: 0 auto !important;
+            max-width: 100% !important;
+            height: auto !important;
         }
 
         /* Screen Preview Styles */
