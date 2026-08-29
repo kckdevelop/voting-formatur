@@ -416,123 +416,164 @@
                         return;
                     }
 
-                    this.revealedCount++;
-                    const currentRankRevealed = 13 - this.revealedCount;
-                    const candidate = this.getCandidateByRank(currentRankRevealed);
+                    const nextStep = this.revealedCount + 1;
+                    const rankToReveal = 13 - nextStep;
+                    const candidate = this.getCandidateByRank(rankToReveal);
+
+                    this.speakCandidateAndReveal(rankToReveal, candidate);
+                },
+
+                triggerCandidateReveal(rank, candidate) {
+                    // Update counter & visual state
+                    const stepNeeded = 13 - rank;
+                    if (this.revealedCount < stepNeeded) {
+                        this.revealedCount = stepNeeded;
+                    }
 
                     this.setSpotlight(candidate);
-                    this.playSound(currentRankRevealed);
-                    this.speakCandidate(currentRankRevealed, candidate.nama);
+                    this.playSound(rank);
 
                     // Festive Confetti on Ranks 1, 2, 3
                     if (typeof confetti !== 'undefined') {
-                        if (currentRankRevealed === 1) {
-                            // Grand Winner Celebration Confetti Cannon
+                        if (rank === 1) {
                             const end = Date.now() + 2500;
                             const colors = ['#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#ffffff'];
-
                             (function frame() {
-                                confetti({
-                                    particleCount: 8,
-                                    angle: 60,
-                                    spread: 60,
-                                    origin: { x: 0 },
-                                    colors: colors
-                                });
-                                confetti({
-                                    particleCount: 8,
-                                    angle: 120,
-                                    spread: 60,
-                                    origin: { x: 1 },
-                                    colors: colors
-                                });
-
-                                if (Date.now() < end) {
-                                    requestAnimationFrame(frame);
-                                }
+                                confetti({ particleCount: 8, angle: 60, spread: 60, origin: { x: 0 }, colors: colors });
+                                confetti({ particleCount: 8, angle: 120, spread: 60, origin: { x: 1 }, colors: colors });
+                                if (Date.now() < end) requestAnimationFrame(frame);
                             })();
-                        } else if (currentRankRevealed === 2 || currentRankRevealed === 3) {
+                        } else if (rank === 2 || rank === 3) {
                             confetti({
                                 particleCount: 90,
                                 spread: 80,
                                 origin: { y: 0.6 },
-                                colors: currentRankRevealed === 2 ? ['#cbd5e1', '#94a3b8', '#ffffff'] : ['#d97706', '#f59e0b', '#fef3c7']
+                                colors: rank === 2 ? ['#cbd5e1', '#94a3b8', '#ffffff'] : ['#d97706', '#f59e0b', '#fef3c7']
                             });
                         }
                     }
                 },
 
-                speakCandidate(rank, candidateName) {
-                    if (!('speechSynthesis' in window) || !this.soundEnabled) return;
-
-                    window.speechSynthesis.cancel(); // Stop any active speech
-
-                    // Ambil 2 kata pertama saja dari nama
-                    const shortName = candidateName.trim().split(/\s+/).slice(0, 2).join(' ');
-
-                    let text = '';
-                    let rate = 0.88;
-                    let pitch = 1.05;
-                    let delay = 400; // ms setelah sound effect
-
-                    if (rank === 1) {
-                        text = `Urutan ke satu... ${shortName}! Selamat, semoga amanah!`;
-                        rate = 0.82;
-                        pitch = 1.1;
-                        delay = 1500; // fanfare rank 1 panjang ~1.3 detik
-                    } else if (rank === 2) {
-                        text = `Urutan ke dua... ${shortName}! Selamat!`;
-                        rate = 0.86;
-                        pitch = 1.08;
-                        delay = 700;
-                    } else if (rank === 3) {
-                        text = `Urutan ke tiga... ${shortName}! Selamat!`;
-                        rate = 0.86;
-                        pitch = 1.05;
-                        delay = 700;
-                    } else if (rank <= 6) {
-                        text = `Urutan ke ${rank}... ${shortName}. Selamat!`;
-                        rate = 0.88;
-                        pitch = 1.02;
-                        delay = 400;
-                    } else {
-                        text = `Urutan ke ${rank}, ${shortName}.`;
-                        rate = 0.90;
-                        pitch = 1.0;
-                        delay = 400;
+                speakCandidateAndReveal(rank, candidate) {
+                    if (!('speechSynthesis' in window) || !this.soundEnabled) {
+                        // Jika suara dimatikan, langsung tampilkan di layar
+                        this.triggerCandidateReveal(rank, candidate);
+                        if (this.autoPlay) {
+                            setTimeout(() => { if (this.autoPlay) this.revealNext(); }, 3500);
+                        }
+                        return;
                     }
 
-                    const utterance = new SpeechSynthesisUtterance(text);
-                    utterance.lang = 'id-ID';
-                    utterance.rate = rate;
-                    utterance.pitch = pitch;
-                    utterance.volume = 1.0;
+                    window.speechSynthesis.cancel(); // Stop active speech
 
-                    // Ensure voice is strictly Indonesian
+                    const shortName = candidate.nama.trim().split(/\s+/).slice(0, 2).join(' ');
+
                     if (!this.indonesianVoice) {
                         const voices = window.speechSynthesis.getVoices();
-                        this.indonesianVoice = 
+                        this.indonesianVoice =
                             voices.find(v => v.lang === 'id-ID' || v.lang === 'id_ID' || v.lang === 'id') ||
                             voices.find(v => v.lang.toLowerCase().startsWith('id')) ||
                             voices.find(v => v.name.toLowerCase().includes('indonesia') || v.name.toLowerCase().includes('indonesian')) ||
                             null;
                     }
 
-                    if (this.indonesianVoice) {
-                        utterance.voice = this.indonesianVoice;
+                    const self = this;
+                    const createUtt = (text, rate, pitch) => {
+                        const utt = new SpeechSynthesisUtterance(text);
+                        utt.lang = 'id-ID';
+                        utt.rate = rate;
+                        utt.pitch = pitch;
+                        utt.volume = 1.0;
+                        if (self.indonesianVoice) utt.voice = self.indonesianVoice;
+                        return utt;
+                    };
+
+                    // Narasi intro sebelum nama
+                    let introText = '';
+                    let nameText = `${shortName}!`;
+                    let outroText = null;
+
+                    let rate = 0.86;
+                    let pitch = 1.07;
+
+                    if (rank === 12) {
+                        introText = `Hadirin yang kami hormati, tibalah saat yang kita nantikan bersama. Persaingan luar biasa telah kita saksikan, dan setiap peserta telah menunjukkan dedikasi terbaiknya. Namun, hari ini kita akan memberikan apresiasi khusus kepada 12 besar yang berhasil mengukir prestasi gemilang. Mari kita sambut dengan bangga, urutan pemenang kita! Di urutan ke-12, dengan perjuangan yang sangat menginspirasi, mari kita beri tepuk tangan meriah untuk...`;
+                    } else if (rank === 11) {
+                        introText = `Selanjutnya, menempati posisi ke-11 dengan penampilan yang penuh bakat, kita ucapkan selamat kepada...`;
+                    } else if (rank === 10) {
+                        introText = `Memasuki sepuluh besar terbaik! Di peringkat ke-10 yang luar biasa, jatuh kepada...`;
+                    } else if (rank === 9) {
+                        introText = `Di urutan ke-9, sebuah pencapaian yang sangat membanggakan! Selamat kepada...`;
+                    } else if (rank === 8) {
+                        introText = `Langkah yang luar biasa hingga titik ini! Posisi ke-8 berhasil diraih oleh...`;
+                    } else if (rank === 7) {
+                        introText = `Tepat di urutan ke-7, dengan talenta yang memukau kita semua, mari kita panggil...`;
+                    } else if (rank === 6) {
+                        introText = `Sesaat lagi kita mendekati posisi puncak! Di urutan ke-6, sebuah prestasi yang sangat istimewa, selamat kepada...`;
+                    } else if (rank === 5) {
+                        introText = `Menempati posisi lima besar yang sangat kompetitif! Di urutan ke-5, kita sambut...`;
+                    } else if (rank === 4) {
+                        introText = `Satu langkah menuju podium utama! Di urutan ke-4, dengan dedikasi yang luar biasa, jatuh kepada...`;
+                    } else if (rank === 3) {
+                        introText = `Hadirin! Inilah tiga besar kita! Kita mulai dari posisi Juara Ketiga. Dengan perolehan suara yang luar biasa, selamat kepada...`;
+                        rate = 0.84; pitch = 1.10;
+                    } else if (rank === 2) {
+                        introText = `Kini tersisa dua nama. Siapakah yang akan membawa gelar utama? Kita umumkan terlebih dahulu posisi kedua... Dan Juara Kedua kita jatuh kepada...`;
+                        rate = 0.83; pitch = 1.12;
+                    } else if (rank === 1) {
+                        introText = `Dan yang secara otomatis menjadi Ketua Formatur terpilih kita... adalah...`;
+                        nameText = `${shortName}! Mari beri tepuk tangan paling meriah!`;
+                        outroText = `Kami ucapkan selamat yang sebesar-besarnya kepada seluruh pemenang, dari urutan ke-12 hingga Ketua Formatur. Keberhasilan hari ini adalah buah dari kerja keras dan semangat luar biasa kalian semua. Semoga amanah dalam mengemban tugas, dan sampai jumpa di kesempatan berikutnya!`;
+                        rate = 0.81; pitch = 1.15;
                     }
 
-                    setTimeout(() => {
-                        window.speechSynthesis.speak(utterance);
-                    }, delay);
-                },
+                    // Mainkan Drumroll Tension saat intro dibacakan
+                    this.playTensionRoll();
 
+                    const uttIntro = createUtt(introText, rate, pitch);
+
+                    uttIntro.onend = () => {
+                        // TEPAT saat intro selesai / menyebut nama: REVEAL DI LAYAR!
+                        self.triggerCandidateReveal(rank, candidate);
+
+                        const uttName = createUtt(nameText, rate + 0.02, pitch + 0.03);
+
+                        uttName.onend = () => {
+                            if (outroText) {
+                                setTimeout(() => {
+                                    const uttOutro = createUtt(outroText, 0.85, 1.05);
+                                    uttOutro.onend = () => {
+                                        if (self.autoPlay && self.revealedCount < 12) {
+                                            setTimeout(() => { if (self.autoPlay) self.revealNext(); }, 2000);
+                                        }
+                                    };
+                                    window.speechSynthesis.speak(uttOutro);
+                                }, 1000);
+                            } else {
+                                if (self.autoPlay && self.revealedCount < 12) {
+                                    setTimeout(() => { if (self.autoPlay) self.revealNext(); }, 2000);
+                                }
+                            }
+                        };
+
+                        window.speechSynthesis.speak(uttName);
+                    };
+
+                    window.speechSynthesis.speak(uttIntro);
+                },
 
                 selectSlot(rankNum) {
                     if (this.isRevealed(rankNum)) {
                         const candidate = this.getCandidateByRank(rankNum);
                         this.setSpotlight(candidate);
-                        this.speakCandidate(rankNum, candidate.nama);
+                        if (this.soundEnabled && 'speechSynthesis' in window) {
+                            window.speechSynthesis.cancel();
+                            const shortName = candidate.nama.trim().split(/\s+/).slice(0, 2).join(' ');
+                            const utt = new SpeechSynthesisUtterance(`Rank ${rankNum}, ${shortName}.`);
+                            utt.lang = 'id-ID';
+                            if (this.indonesianVoice) utt.voice = this.indonesianVoice;
+                            window.speechSynthesis.speak(utt);
+                        }
                     }
                 },
 
@@ -580,20 +621,13 @@
                         }
                         this.autoPlay = true;
                         this.revealNext();
-                        this.autoPlayTimer = setInterval(() => {
-                            if (this.revealedCount >= 12) {
-                                this.stopAutoPlay();
-                            } else {
-                                this.revealNext();
-                            }
-                        }, 5500);
                     }
                 },
 
                 stopAutoPlay() {
                     this.autoPlay = false;
                     if (this.autoPlayTimer) {
-                        clearInterval(this.autoPlayTimer);
+                        clearTimeout(this.autoPlayTimer);
                         this.autoPlayTimer = null;
                     }
                 },
@@ -615,6 +649,67 @@
                             this.revealNext();
                         }
                     });
+                },
+
+                playTensionRoll() {
+                    if (!this.soundEnabled) return;
+                    try {
+                        if (!this.audioCtx) {
+                            this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                        }
+                        const ctx = this.audioCtx;
+                        if (ctx.state === 'suspended') ctx.resume();
+
+                        const now = ctx.currentTime;
+                        // Drumroll roll effect (rapid noise pulses with increasing rate)
+                        const duration = 1.8;
+                        const steps = 24;
+                        for (let i = 0; i < steps; i++) {
+                            const timeOffset = (i / steps) * duration;
+                            const bufferSize = Math.floor(ctx.sampleRate * 0.04);
+                            const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                            const data = buffer.getChannelData(0);
+                            for (let j = 0; j < bufferSize; j++) {
+                                data[j] = Math.random() * 2 - 1;
+                            }
+                            const noise = ctx.createBufferSource();
+                            noise.buffer = buffer;
+
+                            const filter = ctx.createBiquadFilter();
+                            filter.type = 'lowpass';
+                            filter.frequency.setValueAtTime(200 + (i * 30), now + timeOffset);
+
+                            const gain = ctx.createGain();
+                            const vol = 0.05 + (i / steps) * 0.2;
+                            gain.gain.setValueAtTime(vol, now + timeOffset);
+                            gain.gain.exponentialRampToValueAtTime(0.001, now + timeOffset + 0.04);
+
+                            noise.connect(filter);
+                            filter.connect(gain);
+                            gain.connect(ctx.destination);
+
+                            noise.start(now + timeOffset);
+                            noise.stop(now + timeOffset + 0.04);
+                        }
+
+                        // Tension sub-bass drone pulse
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(110, now);
+                        osc.frequency.exponentialRampToValueAtTime(180, now + duration);
+
+                        gain.gain.setValueAtTime(0.01, now);
+                        gain.gain.linearRampToValueAtTime(0.15, now + duration * 0.8);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(now);
+                        osc.stop(now + duration);
+                    } catch (e) {
+                        console.log("Tension roll error:", e);
+                    }
                 },
 
                 playSound(rank) {
