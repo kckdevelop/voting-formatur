@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Setting;
 use App\Services\AuditLogService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 class SettingsController extends Controller
@@ -66,6 +67,10 @@ class SettingsController extends Controller
         }
 
         AuditLogService::log('UPDATE_SETTINGS', 'Memperbarui pengaturan aplikasi pemilihan.');
+
+        // Flush cached settings so middleware/voting picks up latest values immediately
+        Cache::forget('setting.voting_timeout_minutes');
+        Setting::flushCache();
 
         return back()->with('success', 'Pengaturan aplikasi berhasil disimpan!');
     }

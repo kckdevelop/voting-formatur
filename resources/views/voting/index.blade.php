@@ -30,11 +30,11 @@
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3.5 sm:gap-4">
         @foreach($candidates as $candidate)
             <div 
-                @click="toggleSelect({{ $candidate->id }})"
+                @click="toggleSelect({{ $candidate['id'] }})"
                 :class="{
-                    'ring-4 ring-emerald-600 bg-emerald-50/40 shadow-xl border-emerald-500 scale-[1.02]': isSelected({{ $candidate->id }}),
-                    'bg-white border-slate-200 shadow-md hover:border-emerald-300 hover:shadow-lg': !isSelected({{ $candidate->id }}) && !isMaxReached(),
-                    'bg-slate-50 opacity-50 border-slate-200 cursor-not-allowed': !isSelected({{ $candidate->id }}) && isMaxReached()
+                    'ring-4 ring-emerald-600 bg-emerald-50/40 shadow-xl border-emerald-500 scale-[1.02]': isSelected({{ $candidate['id'] }}),
+                    'bg-white border-slate-200 shadow-md hover:border-emerald-300 hover:shadow-lg': !isSelected({{ $candidate['id'] }}) && !isMaxReached(),
+                    'bg-slate-50 opacity-50 border-slate-200 cursor-not-allowed': !isSelected({{ $candidate['id'] }}) && isMaxReached()
                 }"
                 class="relative rounded-2xl border p-3.5 transition duration-300 flex flex-col justify-between cursor-pointer group select-none">
                 
@@ -42,17 +42,17 @@
                 <div class="relative w-full aspect-square rounded-xl overflow-hidden bg-slate-100 mb-2.5 border border-slate-200/60 shadow-inner">
                     <!-- Integrated Order Number Badge (Pojok Kiri Atas Foto) -->
                     <div class="absolute top-2 left-2 z-10 w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-slate-900/90 text-white font-black text-xs sm:text-sm flex items-center justify-center shadow-lg border border-white/20 backdrop-blur-md">
-                        {{ sprintf('%02d', $candidate->nomor_urut) }}
+                        {{ sprintf('%02d', $candidate['nomor_urut']) }}
                     </div>
 
                     <!-- Integrated Checkmark Badge (Pojok Kanan Atas Foto) -->
-                    <div x-show="isSelected({{ $candidate->id }})" x-cloak
+                    <div x-show="isSelected({{ $candidate['id'] }})" x-cloak
                         class="absolute top-2 right-2 z-10 w-7 h-7 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-lg animate-bounce border border-white">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
                     </div>
 
-                    @if($candidate->foto)
-                        <img src="{{ asset('storage/' . $candidate->foto) }}" alt="{{ $candidate->nama }}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                    @if($candidate['foto'])
+                        <img src="{{ asset('storage/' . $candidate['foto']) }}" alt="{{ $candidate['nama'] }}" loading="lazy" decoding="async" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
                     @else
                         <div class="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-gradient-to-b from-slate-100 to-slate-200">
                             <svg class="w-14 h-14" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
@@ -62,16 +62,16 @@
 
                 <!-- Candidate Name & Class -->
                 <div class="text-center mb-2.5">
-                    <h3 class="font-extrabold text-slate-900 text-xs sm:text-sm leading-tight group-hover:text-emerald-700 transition line-clamp-1" title="{{ $candidate->nama }}">
-                        {{ $candidate->nama }}
+                    <h3 class="font-extrabold text-slate-900 text-xs sm:text-sm leading-tight group-hover:text-emerald-700 transition line-clamp-1" title="{{ $candidate['nama'] }}">
+                        {{ $candidate['nama'] }}
                     </h3>
                     <p class="text-[11px] font-semibold text-emerald-600 mt-0.5">
-                        Kelas: {{ $candidate->kelas }}
+                        Kelas: {{ $candidate['kelas'] }}
                     </p>
                 </div>
 
                 <!-- Vision & Mission Preview Button (Diatur dari Pengaturan Admin) -->
-                @if($showVisiMisi && ($candidate->visi || $candidate->misi))
+                @if($showVisiMisi && ($candidate['visi'] || $candidate['misi']))
                     <button type="button" 
                         @click.stop="openModal({{ json_encode($candidate) }})"
                         class="w-full py-1.5 px-2 bg-slate-100 hover:bg-emerald-100 hover:text-emerald-800 text-slate-600 text-[10px] sm:text-[11px] font-bold rounded-lg transition flex items-center justify-center">

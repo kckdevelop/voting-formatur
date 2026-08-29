@@ -33,9 +33,19 @@ class VotingController extends Controller
         $elapsed = time() - $loginTime;
         $remainingSeconds = max(0, ($votingTimeout * 60) - $elapsed);
 
-        $candidates = Candidate::where('status', 'active')
+        $candidates = Candidate::select(['id', 'nomor_urut', 'nama', 'kelas', 'foto', 'visi', 'misi', 'status'])
+            ->where('status', 'active')
             ->orderBy('nomor_urut', 'asc')
-            ->get();
+            ->get()
+            ->map(fn($c) => [
+                'id'          => $c->id,
+                'nomor_urut'  => $c->nomor_urut,
+                'nama'        => $c->nama,
+                'kelas'       => $c->kelas,
+                'foto'        => $c->foto,
+                'visi'        => $c->visi,
+                'misi'        => $c->misi,
+            ]);
 
         return view('voting.index', compact('student', 'candidates', 'maxChoices', 'electionStatus', 'schoolName', 'electionName', 'votingTimeout', 'remainingSeconds', 'showVisiMisi'));
     }
@@ -68,7 +78,8 @@ class VotingController extends Controller
 
         $selectedIds = array_map('intval', $request->input('candidates'));
 
-        $selectedCandidates = Candidate::whereIn('id', $selectedIds)
+        $selectedCandidates = Candidate::select(['id', 'nomor_urut', 'nama', 'kelas'])
+            ->whereIn('id', $selectedIds)
             ->where('status', 'active')
             ->orderBy('nomor_urut', 'asc')
             ->get();
