@@ -7,18 +7,18 @@
         $rows = 5;
         $cardHeightPrint = '53mm';
         $pageHeightPrint = '280mm';
-        $qrSize = 104;
-        $marginPrint = '8mm';
+        $qrSize = 92;
+        $marginPrint = '7mm';
 
-        $logoSize = 'w-7 h-7 text-[10px]';
+        $logoSize = 'w-6.5 h-6.5 text-[9px]';
         $titleSize = 'text-[11px]';
-        $subTitleSize = 'text-[8.5px]';
-        $labelSize = 'text-[8.5px]';
-        $nameSize = 'text-xs sm:text-sm';
-        $infoTextSize = 'text-xs';
+        $subTitleSize = 'text-[8px]';
+        $labelSize = 'text-[7.5px]';
+        $nameSize = 'text-xs sm:text-[13px]';
+        $infoTextSize = 'text-[11px]';
         $tokenSize = 'text-xs px-2 py-0.5';
-        $qrBoxSize = 'w-28 h-28';
-        $footerSize = 'text-[8.5px]';
+        $qrBoxSize = 'w-[100px] h-[100px]';
+        $footerSize = 'text-[8px]';
         $cardPadding = 'p-2.5 sm:p-3';
         $bodyGap = 'my-1 gap-2';
     } elseif ($perPage == 20) {
@@ -27,7 +27,7 @@
         $rows = 4;
         $cardHeightPrint = '47mm';
         $pageHeightPrint = '200mm';
-        $qrSize = 42;
+        $qrSize = 48;
         $marginPrint = '5mm';
 
         $logoSize = 'w-5 h-5 text-[8px]';
@@ -37,7 +37,7 @@
         $nameSize = 'text-[9.5px]';
         $infoTextSize = 'text-[8.5px]';
         $tokenSize = 'text-[8.5px] px-1 py-0.2';
-        $qrBoxSize = 'w-12 h-12 sm:w-13 sm:h-13';
+        $qrBoxSize = 'w-[56px] h-[56px]';
         $footerSize = 'text-[6.5px]';
         $cardPadding = 'p-1.5';
         $bodyGap = 'my-0.5 gap-1';
@@ -47,17 +47,17 @@
         $rows = 3;
         $cardHeightPrint = '63mm';
         $pageHeightPrint = '200mm';
-        $qrSize = 52;
+        $qrSize = 64;
         $marginPrint = '5mm';
 
         $logoSize = 'w-5.5 h-5.5 text-[8.5px]';
-        $titleSize = 'text-[9px]';
+        $titleSize = 'text-[9.5px]';
         $subTitleSize = 'text-[7px]';
         $labelSize = 'text-[7px]';
-        $nameSize = 'text-[10.5px]';
+        $nameSize = 'text-[11px]';
         $infoTextSize = 'text-[9.5px]';
         $tokenSize = 'text-[9.5px] px-1 py-0.5';
-        $qrBoxSize = 'w-14 h-14 sm:w-15 sm:h-15';
+        $qrBoxSize = 'w-[72px] h-[72px]';
         $footerSize = 'text-[7px]';
         $cardPadding = 'p-2';
         $bodyGap = 'my-1 gap-1';
@@ -110,7 +110,11 @@
             }
         }
 
-        [id^="qrcode-"] img, [id^="qrcode-"] canvas {
+        /* Prevent QRCodeJS duplicate canvas display */
+        [id^="qrcode-"] canvas {
+            display: none !important;
+        }
+        [id^="qrcode-"] img {
             display: block !important;
             margin: 0 auto !important;
             max-width: 100% !important;
@@ -207,51 +211,56 @@
                     <div class="voter-card bg-white border-2 border-emerald-700/90 rounded-xl {{ $cardPadding }} flex flex-col justify-between relative overflow-hidden bg-gradient-to-b from-white to-slate-50/50 shadow-sm">
                         
                         <!-- Header Card -->
-                        <div class="flex items-center space-x-1.5 pb-0.5 border-b border-slate-200">
-                            <div class="{{ $logoSize }} bg-emerald-800 rounded-md flex items-center justify-center text-white font-black flex-shrink-0 shadow-sm">
-                                IPM
+                        <div class="flex items-center justify-between pb-0.5 border-b border-slate-200">
+                            <div class="flex items-center space-x-1.5 min-w-0">
+                                <div class="{{ $logoSize }} bg-emerald-800 rounded-md flex items-center justify-center text-white font-black flex-shrink-0 shadow-sm">
+                                    IPM
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <h2 class="{{ $titleSize }} font-black text-emerald-900 leading-none truncate">
+                                        {{ $schoolName }}
+                                    </h2>
+                                    <p class="{{ $subTitleSize }} font-extrabold text-slate-500 uppercase tracking-tight mt-0.5">
+                                        KARTU PEMILIH E-VOTING IPM
+                                    </p>
+                                </div>
                             </div>
-                            <div class="min-w-0 flex-1">
-                                <h2 class="{{ $titleSize }} font-black text-emerald-900 leading-none truncate">
-                                    {{ $schoolName }}
-                                </h2>
-                                <p class="{{ $subTitleSize }} font-extrabold text-slate-500 uppercase tracking-tight mt-0.5">
-                                    KARTU PEMILIH E-VOTING IPM
-                                </p>
-                            </div>
+                            <span class="text-[7.5px] font-extrabold bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-1.5 py-0.5 rounded-full flex-shrink-0 ml-1">
+                                {{ date('Y') }}
+                            </span>
                         </div>
 
                         <!-- Card Body: Details & QR -->
-                        <div class="{{ $bodyGap }} flex items-center justify-between">
+                        <div class="{{ $bodyGap }} flex items-center justify-between min-w-0">
                             <!-- Student Info -->
-                            <div class="min-w-0 flex-1 space-y-0.5">
+                            <div class="min-w-0 flex-1 space-y-0.5 pr-1">
                                 <div>
                                     <span class="{{ $labelSize }} uppercase font-bold text-slate-400 block leading-none">Nama Siswa</span>
-                                    <p class="{{ $nameSize }} font-black text-slate-900 leading-tight truncate mt-0.5">{{ $student->nama }}</p>
+                                    <p class="{{ $nameSize }} font-black text-slate-900 leading-tight truncate mt-0.5" title="{{ $student->nama }}">{{ $student->nama }}</p>
                                 </div>
 
-                                <div class="flex space-x-1.5 pt-0.5">
+                                <div class="flex items-center space-x-2 pt-0.5">
                                     <div>
                                         <span class="{{ $labelSize }} uppercase font-bold text-slate-400 block leading-none">NIS</span>
-                                        <p class="{{ $infoTextSize }} font-mono font-extrabold text-emerald-700 leading-tight">{{ $student->nis }}</p>
+                                        <p class="{{ $infoTextSize }} font-mono font-black text-emerald-700 leading-tight mt-0.5">{{ $student->nis }}</p>
                                     </div>
                                     <div>
                                         <span class="{{ $labelSize }} uppercase font-bold text-slate-400 block leading-none">Kelas</span>
-                                        <p class="{{ $infoTextSize }} font-extrabold text-slate-800 leading-tight truncate max-w-[50px]">{{ $student->kelas }}</p>
+                                        <p class="{{ $infoTextSize }} font-extrabold text-slate-800 leading-tight truncate max-w-[65px] bg-slate-100 px-1 py-0.2 rounded border border-slate-200 mt-0.5">{{ $student->kelas }}</p>
                                     </div>
                                 </div>
 
                                 <div class="pt-0.5">
                                     <span class="{{ $labelSize }} uppercase font-bold text-slate-400 block leading-none">Token Login</span>
-                                    <p class="{{ $tokenSize }} font-mono font-black bg-slate-100 text-slate-900 rounded border border-slate-200 inline-block leading-none mt-0.5 tracking-wider">
+                                    <p class="{{ $tokenSize }} font-mono font-black bg-emerald-50 text-emerald-950 rounded border border-emerald-300 inline-block leading-none mt-0.5 tracking-wider shadow-xs">
                                         {{ $student->plain_token ?? '******' }}
                                     </p>
                                 </div>
                             </div>
 
                             <!-- QR Code Container -->
-                            <div class="{{ $qrBoxSize }} bg-white p-0.5 rounded-md border border-slate-200 shadow-inner flex items-center justify-center flex-shrink-0">
-                                <div id="qrcode-{{ $student->id }}" class="flex items-center justify-center"></div>
+                            <div class="{{ $qrBoxSize }} bg-white p-1 rounded-xl border border-emerald-300/80 shadow-xs flex flex-col items-center justify-center flex-shrink-0">
+                                <div id="qrcode-{{ $student->id }}" class="flex items-center justify-center w-full h-full"></div>
                             </div>
                         </div>
 
@@ -284,6 +293,7 @@
 
                     const container = document.getElementById("qrcode-{{ $student->id }}");
                     if (container && typeof QRCode !== 'undefined') {
+                        container.innerHTML = '';
                         new QRCode(container, {
                             text: payload,
                             width: {{ $qrSize }},
