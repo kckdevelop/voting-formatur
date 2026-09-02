@@ -27,13 +27,10 @@
             Anda sudah menggunakan hak pilih untuk Pemilihan Ketua & Formatur IPM.
         </div>
 
-        <form action="{{ route('student.logout') }}" method="POST" class="mt-4">
-            @csrf
-            <button type="submit" 
-                class="w-full py-3.5 px-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold rounded-2xl shadow-lg transition">
-                Selesai & Keluar Aplikasi
-            </button>
-        </form>
+        <a href="{{ route('student.logout.get') }}" 
+            class="mt-4 block w-full py-3.5 px-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold rounded-2xl shadow-lg transition text-center">
+            Selesai & Keluar Aplikasi
+        </a>
     </div>
 </div>
 @endsection

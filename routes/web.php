@@ -18,6 +18,7 @@ Route::get('/login', [StudentAuthController::class, 'showLoginForm'])->name('stu
 Route::post('/login', [StudentAuthController::class, 'login'])->name('student.login.submit');
 Route::post('/login/qr', [StudentAuthController::class, 'loginQr'])->name('student.login.qr');
 Route::post('/logout', [StudentAuthController::class, 'logout'])->name('student.logout');
+Route::get('/logout', [StudentAuthController::class, 'logout'])->name('student.logout.get');
 
 // Student Voting Routes (Protected)
 Route::middleware('auth.student')->group(function () {
